@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  CheckCircle2, Circle, Plus, Trash2, Calendar, 
-  Clock, Tag, Flag, ArrowUpRight, Check 
+  CheckCircle2, Circle, Plus, Trash2, ArrowUpRight, 
+  Flag, Clock, Sparkles, Filter 
 } from 'lucide-react';
+import { TIIMO_TINTS } from '../utils/tiimoTokens';
 import { playClickSound, playCompletionChime } from '../utils/audioEngine';
-import { NOTION_TINTS } from '../utils/notionTokens';
 
 export default function TodoView({
   todos = [],
@@ -43,7 +44,7 @@ export default function TodoView({
       title: newTitle.trim(),
       list: newList,
       priority: newPriority,
-      tintId: tintMap[newList] || 'gray',
+      tintId: tintMap[newList] || 'mint',
       completed: false,
       scheduledTime: null
     });
@@ -55,81 +56,74 @@ export default function TodoView({
   const getPriorityStyle = (priority) => {
     switch (priority) {
       case 'High':
-        return { bg: '#fde0ec', text: '#a02e6d', border: '#f7c2d8' };
+        return { bg: '#FFE5D9', text: '#9A3412', border: '#F4845F' };
       case 'Medium':
-        return { bg: '#fef7d6', text: '#793400', border: '#f9e79f' };
+        return { bg: '#FFF3CD', text: '#785100', border: '#FFD166' };
       default:
-        return { bg: '#f0eeec', text: '#5d5b54', border: '#dedad6' };
+        return { bg: '#E0F2FE', text: '#0369A1', border: '#38BDF8' };
     }
   };
 
-  const completedCount = filteredTodos.filter(t => t.completed).length;
+  const pendingCount = filteredTodos.filter(t => !t.completed).length;
 
   return (
-    <div className="todo-view-container animate-fade-in">
-      {/* Category List Tabs */}
-      <div className="todo-tabs-scroll">
-        {lists.map(listName => (
-          <button
-            key={listName}
-            type="button"
-            className={`todo-tab-btn ${selectedList === listName ? 'active' : ''}`}
-            onClick={() => {
-              playClickSound();
-              setSelectedList(listName);
-            }}
-          >
-            <span>{listName}</span>
-            <span className="todo-count-badge">
-              {listName === 'All' 
-                ? todos.filter(t => !t.completed).length 
-                : todos.filter(t => t.list === listName && !t.completed).length}
-            </span>
-          </button>
-        ))}
+    <div className="tiimo-todo-container">
+      {/* Category List Filter Pills */}
+      <div className="todo-filter-pills-row">
+        {lists.map(listName => {
+          const isSelected = selectedList === listName;
+          const count = listName === 'All' 
+            ? todos.filter(t => !t.completed).length 
+            : todos.filter(t => t.list === listName && !t.completed).length;
+
+          return (
+            <button
+              key={listName}
+              type="button"
+              className={`todo-filter-pill ${isSelected ? 'active' : ''}`}
+              onClick={() => {
+                playClickSound();
+                setSelectedList(listName);
+              }}
+            >
+              <span>{listName}</span>
+              {count > 0 && <span className="pill-badge">{count}</span>}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Summary progress bar */}
-      <div className="todo-summary-card">
-        <div className="todo-progress-header">
-          <span className="todo-progress-title">{selectedList} Tasks</span>
-          <span className="todo-progress-stat">
-            {completedCount} of {filteredTodos.length} completed
-          </span>
-        </div>
-        <div className="todo-progress-track">
-          <div 
-            className="todo-progress-fill"
-            style={{
-              width: filteredTodos.length > 0 ? `${(completedCount / filteredTodos.length) * 100}%` : '0%'
-            }}
-          />
-        </div>
-      </div>
-
-      {/* Inline Quick Add Task Button / Form */}
+      {/* Quick Add Button or Form */}
       {!isAdding ? (
         <button
           type="button"
-          className="todo-open-add-btn"
-          onClick={() => setIsAdding(true)}
+          className="todo-quick-add-btn"
+          onClick={() => {
+            playClickSound();
+            setIsAdding(true);
+          }}
         >
-          <Plus size={16} strokeWidth={2.5} />
-          <span>New Task in {selectedList === 'All' ? 'Today' : selectedList}...</span>
+          <Plus size={18} />
+          <span>Add new to-do in {selectedList === 'All' ? 'Today' : selectedList}...</span>
         </button>
       ) : (
-        <form className="todo-add-form animate-fade-in" onSubmit={handleCreate}>
+        <motion.form 
+          className="todo-inline-add-card"
+          onSubmit={handleCreate}
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
           <input
             type="text"
-            className="todo-add-input"
-            placeholder="What needs to be done?"
-            autoFocus
+            className="todo-input-field"
+            placeholder="What needs to get done?"
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
+            autoFocus
           />
 
-          <div className="todo-form-options">
-            <div className="form-selects">
+          <div className="todo-form-controls">
+            <div className="select-chips-group">
               <select 
                 className="todo-mini-select"
                 value={newList}
@@ -152,73 +146,92 @@ export default function TodoView({
               </select>
             </div>
 
-            <div className="form-buttons">
+            <div className="form-action-btns">
               <button 
                 type="button" 
-                className="form-cancel-btn"
+                className="btn-cancel"
                 onClick={() => setIsAdding(false)}
               >
                 Cancel
               </button>
               <button 
                 type="submit" 
-                className="form-save-btn"
+                className="btn-save"
                 disabled={!newTitle.trim()}
               >
-                Add Task
+                Add To-Do
               </button>
             </div>
           </div>
-        </form>
+        </motion.form>
       )}
 
       {/* Task List */}
-      <div className="todo-items-list">
+      <div className="todo-items-stream">
         {filteredTodos.length === 0 ? (
           <div className="todo-empty-state">
-            <CheckCircle2 size={32} opacity={0.3} />
-            <p>No tasks in this list. Tap above to add one!</p>
+            <div className="empty-icon-circle">
+              <CheckCircle2 size={28} />
+            </div>
+            <h4>All clear in {selectedList}</h4>
+            <p>You have finished all items or have not added any yet.</p>
           </div>
         ) : (
           filteredTodos.map(item => {
+            const tint = TIIMO_TINTS[item.tintId] || TIIMO_TINTS.mint;
             const pStyle = getPriorityStyle(item.priority);
+
             return (
-              <div 
+              <motion.div 
                 key={item.id} 
-                className={`todo-item-card ${item.completed ? 'completed' : ''}`}
+                className={`todo-card ${item.completed ? 'is-done' : ''}`}
+                style={{
+                  backgroundColor: tint.bg,
+                  borderColor: tint.border
+                }}
+                layout
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.18 }}
               >
-                <div className="todo-item-main">
+                <div className="todo-left-cluster">
                   <button
                     type="button"
-                    className="todo-checkbox-btn"
+                    className="todo-check-btn"
                     onClick={() => {
                       playClickSound();
                       onToggleTodo(item.id);
                     }}
+                    title={item.completed ? "Mark undone" : "Mark done"}
                   >
                     {item.completed ? (
-                      <CheckCircle2 size={20} className="checked-icon" />
+                      <CheckCircle2 size={22} color={tint.accent} />
                     ) : (
-                      <Circle size={20} className="unchecked-icon" />
+                      <Circle size={22} color={tint.text} opacity={0.65} />
                     )}
                   </button>
 
-                  <div className="todo-content">
-                    <span className="todo-title-text">{item.title}</span>
+                  <div className="todo-text-block">
+                    <span 
+                      className="todo-title"
+                      style={{ color: tint.text }}
+                    >
+                      {item.title}
+                    </span>
                     <div className="todo-meta-row">
                       <span 
                         className="priority-chip"
                         style={{ backgroundColor: pStyle.bg, color: pStyle.text, borderColor: pStyle.border }}
                       >
-                        <Flag size={10} className="inline-icon" />
+                        <Flag size={10} />
                         {item.priority}
                       </span>
-                      <span className="todo-list-tag">
+                      <span className="list-name-chip" style={{ color: tint.badgeText }}>
                         {item.list}
                       </span>
                       {item.scheduledTime && (
-                        <span className="todo-scheduled-tag">
-                          <Clock size={10} className="inline-icon" />
+                        <span className="time-chip" style={{ color: tint.badgeText }}>
+                          <Clock size={10} />
                           {item.scheduledTime}
                         </span>
                       )}
@@ -226,8 +239,8 @@ export default function TodoView({
                   </div>
                 </div>
 
-                <div className="todo-item-actions">
-                  {/* Quick Schedule to Timeline */}
+                <div className="todo-right-cluster">
+                  {/* Schedule to Timeline Button */}
                   {!item.completed && (
                     <button
                       type="button"
@@ -236,23 +249,21 @@ export default function TodoView({
                       title="Add to Today's Timeline"
                     >
                       <ArrowUpRight size={14} />
-                      <span className="btn-text">To Timeline</span>
+                      <span className="schedule-label">To Timeline</span>
                     </button>
                   )}
 
+                  {/* Delete Button */}
                   <button
                     type="button"
                     className="todo-delete-btn"
-                    onClick={() => {
-                      playClickSound();
-                      onDeleteTodo(item.id);
-                    }}
-                    title="Delete task"
+                    onClick={() => onDeleteTodo(item.id)}
+                    title="Delete item"
                   >
                     <Trash2 size={15} />
                   </button>
                 </div>
-              </div>
+              </motion.div>
             );
           })
         )}

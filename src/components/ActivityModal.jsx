@@ -4,7 +4,7 @@ import {
   Sun, Moon, Laptop, Footprints, Mail, Utensils, 
   Sparkles, BookOpen, Coffee, Dumbbell, Music, Heart, Check
 } from 'lucide-react';
-import { NOTION_TINTS } from '../utils/notionTokens';
+import { TIIMO_TINTS } from '../utils/tiimoTokens';
 import { playClickSound } from '../utils/audioEngine';
 
 const AVAILABLE_ICONS = [
@@ -12,14 +12,12 @@ const AVAILABLE_ICONS = [
   { name: 'Moon', component: Moon },
   { name: 'Laptop', component: Laptop },
   { name: 'Footprints', component: Footprints },
-  { name: 'Mail', component: Mail },
+  { name: 'Heart', component: Heart },
   { name: 'Utensils', component: Utensils },
   { name: 'Sparkles', component: Sparkles },
   { name: 'BookOpen', component: BookOpen },
   { name: 'Coffee', component: Coffee },
-  { name: 'Dumbbell', component: Dumbbell },
-  { name: 'Music', component: Music },
-  { name: 'Heart', component: Heart }
+  { name: 'Music', component: Music }
 ];
 
 export default function ActivityModal({
@@ -31,20 +29,22 @@ export default function ActivityModal({
   const [title, setTitle] = useState('');
   const [startTime, setStartTime] = useState('09:00');
   const [durationMinutes, setDurationMinutes] = useState(45);
-  const [category, setCategory] = useState('Routine');
-  const [tintId, setTintId] = useState('lavender');
+  const [category, setCategory] = useState('Morning');
+  const [tintId, setTintId] = useState('mint');
   const [icon, setIcon] = useState('Sun');
   const [notes, setNotes] = useState('');
   const [subtasks, setSubtasks] = useState([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+
+  const tintList = Object.values(TIIMO_TINTS);
 
   useEffect(() => {
     if (editingActivity) {
       setTitle(editingActivity.title || '');
       setStartTime(editingActivity.startTime || '09:00');
       setDurationMinutes(editingActivity.durationMinutes || 45);
-      setCategory(editingActivity.category || 'Routine');
-      setTintId(editingActivity.tintId || 'lavender');
+      setCategory(editingActivity.category || 'Morning');
+      setTintId(editingActivity.tintId || 'mint');
       setIcon(editingActivity.icon || 'Sun');
       setNotes(editingActivity.notes || '');
       setSubtasks(editingActivity.subtasks ? [...editingActivity.subtasks] : []);
@@ -52,8 +52,8 @@ export default function ActivityModal({
       setTitle('');
       setStartTime('09:00');
       setDurationMinutes(45);
-      setCategory('Routine');
-      setTintId('lavender');
+      setCategory('Morning');
+      setTintId('mint');
       setIcon('Sun');
       setNotes('');
       setSubtasks([
@@ -100,7 +100,7 @@ export default function ActivityModal({
     onClose();
   };
 
-  const selectedTint = NOTION_TINTS.find(t => t.id === tintId) || NOTION_TINTS[0];
+  const selectedTint = TIIMO_TINTS[tintId] || TIIMO_TINTS.mint;
 
   return (
     <div className="modal-backdrop animate-fade-in" onClick={onClose}>
@@ -113,7 +113,7 @@ export default function ActivityModal({
               style={{ backgroundColor: selectedTint.accent }}
             />
             <h3 className="modal-title">
-              {editingActivity ? 'Edit Activity' : 'Add New Activity'}
+              {editingActivity ? 'Edit Activity' : 'Create Tiimo Routine'}
             </h3>
           </div>
           <button 
@@ -129,12 +129,12 @@ export default function ActivityModal({
         <form onSubmit={handleSubmit} className="modal-body-form">
           {/* Title */}
           <div className="form-group">
-            <label className="form-label" htmlFor="act-title">Activity Title</label>
+            <label className="form-label" htmlFor="act-title">Activity Name</label>
             <input
               id="act-title"
               type="text"
               className="form-input"
-              placeholder="e.g. Deep Work Sprint, Yoga Flow, Team Standup"
+              placeholder="e.g. Morning Stretch, Deep Focus, Somatic Reset"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               autoFocus
@@ -160,29 +160,29 @@ export default function ActivityModal({
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="act-duration">Duration (Minutes)</label>
+              <label className="form-label" htmlFor="act-duration">Duration</label>
               <select
                 id="act-duration"
                 className="form-select"
                 value={durationMinutes}
                 onChange={(e) => setDurationMinutes(e.target.value)}
               >
-                <option value={15}>15 min</option>
-                <option value={25}>25 min (Pomodoro)</option>
-                <option value={30}>30 min</option>
-                <option value={45}>45 min</option>
-                <option value={60}>60 min (1 hr)</option>
-                <option value={90}>90 min</option>
-                <option value={120}>120 min (2 hr)</option>
+                <option value={15}>15 minutes</option>
+                <option value={25}>25 minutes (Focus block)</option>
+                <option value={30}>30 minutes</option>
+                <option value={45}>45 minutes</option>
+                <option value={60}>1 hour</option>
+                <option value={90}>1.5 hours</option>
+                <option value={120}>2 hours</option>
               </select>
             </div>
           </div>
 
-          {/* Category */}
+          {/* Category Chips */}
           <div className="form-group">
             <label className="form-label">Category</label>
             <div className="category-chips-row">
-              {['Routine', 'Work', 'Wellness', 'Creative', 'Habit'].map(cat => (
+              {['Morning', 'Deep Work', 'Health', 'Mindfulness', 'Evening', 'Routine'].map(cat => (
                 <button
                   key={cat}
                   type="button"
@@ -195,21 +195,21 @@ export default function ActivityModal({
             </div>
           </div>
 
-          {/* Notion Tint Color Picker */}
+          {/* Tiimo Pastel Tint Picker */}
           <div className="form-group">
             <label className="form-label">
               <Palette size={13} className="inline-icon" />
-              Notion Card Tint
+              Tiimo Pastel Tint
             </label>
             <div className="tint-swatches-grid">
-              {NOTION_TINTS.map(t => (
+              {tintList.map(t => (
                 <button
                   key={t.id}
                   type="button"
                   className={`tint-swatch ${tintId === t.id ? 'selected' : ''}`}
                   style={{ backgroundColor: t.bg, borderColor: t.border }}
                   onClick={() => setTintId(t.id)}
-                  title={t.name}
+                  title={t.label}
                 >
                   {tintId === t.id && (
                     <Check size={14} color={t.accent} strokeWidth={3} />
@@ -219,97 +219,85 @@ export default function ActivityModal({
             </div>
           </div>
 
-          {/* Icon Selector */}
+          {/* Icon Picker */}
           <div className="form-group">
             <label className="form-label">Activity Icon</label>
-            <div className="icons-selector-grid">
-              {AVAILABLE_ICONS.map(ic => {
-                const Comp = ic.component;
-                const isSelected = icon === ic.name;
+            <div className="icons-picker-row">
+              {AVAILABLE_ICONS.map(item => {
+                const IconCmp = item.component;
+                const isSelected = icon === item.name;
                 return (
                   <button
-                    key={ic.name}
+                    key={item.name}
                     type="button"
-                    className={`icon-pick-btn ${isSelected ? 'active' : ''}`}
-                    onClick={() => setIcon(ic.name)}
+                    className={`icon-choice-btn ${isSelected ? 'active' : ''}`}
+                    onClick={() => setIcon(item.name)}
                   >
-                    <Comp size={16} />
+                    <IconCmp size={18} />
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Step-by-Step Checklist */}
+          {/* Subtasks Checklist Builder */}
           <div className="form-group">
-            <label className="form-label">Checklist Steps ({subtasks.length})</label>
-            <div className="modal-subtasks-list">
-              {subtasks.map(s => (
-                <div key={s.id} className="modal-subtask-item">
-                  <span className="subtask-dot">•</span>
-                  <span className="modal-subtask-name">{s.title}</span>
+            <label className="form-label">Micro-steps / Subtasks</label>
+            <div className="subtasks-builder">
+              {subtasks.map((sub) => (
+                <div key={sub.id} className="subtask-edit-row">
+                  <span className="subtask-bullet">•</span>
+                  <span className="subtask-edit-title">{sub.title}</span>
                   <button
                     type="button"
-                    className="subtask-remove-btn"
-                    onClick={() => handleRemoveSubtask(s.id)}
+                    className="subtask-del-btn"
+                    onClick={() => handleRemoveSubtask(sub.id)}
                   >
                     <Trash2 size={13} />
                   </button>
                 </div>
               ))}
-            </div>
 
-            <div className="add-subtask-input-row">
-              <input
-                type="text"
-                className="form-input subtask-add-field"
-                placeholder="Add subtask step..."
-                value={newSubtaskTitle}
-                onChange={(e) => setNewSubtaskTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddSubtask();
-                  }
-                }}
-              />
-              <button
-                type="button"
-                className="add-subtask-btn"
-                onClick={handleAddSubtask}
-              >
-                <Plus size={14} />
-              </button>
+              <div className="add-subtask-input-row">
+                <input
+                  type="text"
+                  className="subtask-input"
+                  placeholder="Add a step..."
+                  value={newSubtaskTitle}
+                  onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddSubtask();
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  className="add-step-btn"
+                  onClick={handleAddSubtask}
+                >
+                  <Plus size={14} />
+                  <span>Add</span>
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Notes */}
-          <div className="form-group">
-            <label className="form-label" htmlFor="act-notes">Notes or Intention</label>
-            <input
-              id="act-notes"
-              type="text"
-              className="form-input"
-              placeholder="e.g. Focus on quality, put phone on silent..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-
-          {/* Actions */}
-          <div className="modal-footer">
-            <button
-              type="button"
-              className="btn-cancel"
+          {/* Submit Action */}
+          <div className="modal-actions-footer">
+            <button 
+              type="button" 
+              className="modal-btn-cancel" 
               onClick={onClose}
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              className="btn-save-primary"
+            <button 
+              type="submit" 
+              className="modal-btn-save"
             >
-              {editingActivity ? 'Save Changes' : 'Create Activity'}
+              {editingActivity ? 'Save Changes' : 'Add to Schedule'}
             </button>
           </div>
         </form>

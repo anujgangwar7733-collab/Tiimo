@@ -108,8 +108,8 @@ html, body {
   padding: 0;
   overflow: hidden;
   overscroll-behavior-y: none;
-  background-color: var(--color-canvas);
-  color: var(--color-ink);
+  background-color: var(--tiimo-bg, #F8F8F6);
+  color: var(--tiimo-text-primary, #2D3142);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

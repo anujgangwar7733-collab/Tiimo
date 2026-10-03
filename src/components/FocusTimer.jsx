@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { 
-  Play, Pause, RotateCcw, Plus, CheckCircle2, Circle, 
-  Volume2, VolumeX, ArrowLeft, Sparkles, Award, Check
+  Play, Pause, Plus, CheckCircle2, X, Volume2, 
+  VolumeX, RotateCcw, Sparkles, Check, ChevronDown, ChevronUp
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { TIIMO_TINTS } from '../utils/tiimoTokens';
 import { playAmbientSound, stopAmbientSound, playCompletionChime, playClickSound } from '../utils/audioEngine';
-import { NOTION_TINTS } from '../utils/notionTokens';
 
 export default function FocusTimer({
   activity,
@@ -13,261 +14,260 @@ export default function FocusTimer({
   onCompleteActivity,
   onToggleSubtask
 }) {
-  const initialSeconds = (activity?.durationMinutes || 25) * 60;
-  const [totalSeconds, setTotalSeconds] = useState(initialSeconds);
-  const [secondsRemaining, setSecondsRemaining] = useState(initialSeconds);
+  const duration = (activity?.durationMinutes || 25) * 60;
+  const [timeLeft, setTimeLeft] = useState(duration);
   const [isRunning, setIsRunning] = useState(true);
-  const [soundMode, setSoundMode] = useState('pink'); // Default to calming pink noise
-  const [completedSteps, setCompletedSteps] = useState(0);
+  const [activeSound, setActiveSound] = useState('pink'); // 'pink' | 'rain' | 'alpha' | 'white' | 'off'
+  const [showSubtasks, setShowSubtasks] = useState(false);
 
-  const timerRef = useRef(null);
+  const tint = TIIMO_TINTS[activity?.tintId] || TIIMO_TINTS.lavender;
 
-  // Sync with ambient sound
+  // Sound generator toggle
   useEffect(() => {
-    if (isRunning && soundMode !== 'none') {
-      playAmbientSound(soundMode, 0.22);
+    if (isRunning && activeSound !== 'off') {
+      playAmbientSound(activeSound, 0.25);
     } else {
       stopAmbientSound();
     }
     return () => {
       stopAmbientSound();
     };
-  }, [isRunning, soundMode]);
+  }, [isRunning, activeSound]);
 
   // Timer Tick
   useEffect(() => {
-    if (isRunning) {
-      timerRef.current = setInterval(() => {
-        setSecondsRemaining(prev => {
-          if (prev <= 1) {
-            clearInterval(timerRef.current);
-            handleFinish(true);
-            return 0;
-          }
-          return prev - 1;
-        });
+    let interval = null;
+    if (isRunning && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft(prev => prev - 1);
       }, 1000);
-    } else {
-      clearInterval(timerRef.current);
+    } else if (timeLeft === 0 && isRunning) {
+      setIsRunning(false);
+      handleComplete();
     }
-    return () => clearInterval(timerRef.current);
-  }, [isRunning]);
+    return () => clearInterval(interval);
+  }, [isRunning, timeLeft]);
 
-  const handleFinish = (isAuto = false) => {
-    setIsRunning(false);
-    stopAmbientSound();
-    playCompletionChime();
-    
-    // Trigger confetti celebration
-    try {
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#5645d4', '#ff64c8', '#1aae39', '#f5a623', '#2a9d99']
-      });
-    } catch(e) {}
-
-    if (activity && onCompleteActivity) {
-      onCompleteActivity(activity.id);
-    }
-  };
-
-  const togglePlayPause = () => {
+  const handleTogglePlay = () => {
     playClickSound();
     setIsRunning(!isRunning);
+  };
+
+  const handleAddFiveMin = () => {
+    playClickSound();
+    setTimeLeft(prev => prev + 300);
   };
 
   const handleReset = () => {
     playClickSound();
     setIsRunning(false);
-    setSecondsRemaining(totalSeconds);
+    setTimeLeft(duration);
   };
 
-  const handleAddFiveMinutes = () => {
-    playClickSound();
-    setTotalSeconds(prev => prev + 300);
-    setSecondsRemaining(prev => prev + 300);
+  const handleComplete = () => {
+    stopAmbientSound();
+    playCompletionChime();
+    confetti({
+      particleCount: 80,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#52B788', '#9B86ED', '#FFD166', '#38BDF8', '#F4845F']
+    });
+    if (onCompleteActivity && activity?.id) {
+      onCompleteActivity(activity.id);
+    }
   };
 
+  // Format MM:SS
   const formatTime = (secs) => {
-    const mins = Math.floor(secs / 60);
-    const remainderSecs = secs % 60;
-    return `${String(mins).padStart(2, '0')}:${String(remainderSecs).padStart(2, '0')}`;
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
-  // Circular progress calculations
-  const progressRatio = totalSeconds > 0 ? (totalSeconds - secondsRemaining) / totalSeconds : 0;
-  const radius = 100;
+  // Circular SVG Math
+  const radius = 120;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - progressRatio * circumference;
+  const progressRatio = duration > 0 ? (duration - timeLeft) / duration : 0;
+  const strokeDashoffset = circumference - (progressRatio * circumference);
 
-  const tint = activity?.tintId ? NOTION_TINTS.find(t => t.id === activity.tintId) : NOTION_TINTS[0];
+  const subtasks = activity?.subtasks || [];
+  const completedSubs = subtasks.filter(s => s.completed).length;
 
   return (
-    <div className="focus-timer-screen animate-fade-in">
-      {/* Top Header bar */}
-      <div className="focus-header">
+    <motion.div 
+      className="tiimo-focus-overlay"
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.98 }}
+      transition={{ duration: 0.25 }}
+    >
+      {/* Top Header */}
+      <div className="focus-top-bar">
         <button 
           type="button" 
-          className="focus-back-btn"
-          onClick={() => {
-            stopAmbientSound();
-            onClose();
-          }}
+          className="focus-close-btn"
+          onClick={onClose}
+          aria-label="Close focus timer"
         >
-          <ArrowLeft size={18} />
-          <span>Exit Focus</span>
+          <X size={20} />
         </button>
-
-        <span className="focus-mode-badge">
-          <Sparkles size={13} className="sparkle-icon" />
-          Focus Session
-        </span>
+        <span className="focus-mode-label">FOCUS PLAYER</span>
+        <button 
+          type="button" 
+          className="focus-reset-btn"
+          onClick={handleReset}
+          title="Reset timer"
+          aria-label="Reset timer"
+        >
+          <RotateCcw size={18} />
+        </button>
       </div>
 
-      {/* Main Focus Card */}
-      <div className="focus-content-wrap">
-        <h2 className="focus-task-title">{activity?.title || 'Deep Focus Block'}</h2>
-        <span className="focus-task-notes">
-          {activity?.notes || 'Stay grounded. Notice how good it feels to focus on one thing.'}
-        </span>
+      {/* Main Circular Countdown Display */}
+      <div className="focus-dial-container">
+        <svg className="focus-svg-ring" width="280" height="280" viewBox="0 0 280 280">
+          {/* Background Track */}
+          <circle
+            cx="140"
+            cy="140"
+            r={radius}
+            className="ring-track"
+            stroke={tint.border}
+            strokeWidth="14"
+            fill="transparent"
+          />
+          {/* Animated Progress Ring */}
+          <circle
+            cx="140"
+            cy="140"
+            r={radius}
+            className="ring-progress"
+            stroke={tint.accent}
+            strokeWidth="14"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+            fill="transparent"
+            transform="rotate(-90 140 140)"
+          />
+        </svg>
 
-        {/* Circular Progress Ring */}
-        <div className="circular-timer-container">
-          <svg className="timer-svg" width="240" height="240" viewBox="0 0 240 240">
-            {/* Background Circle */}
-            <circle
-              className="timer-track"
-              cx="120"
-              cy="120"
-              r={radius}
-              strokeWidth="12"
-              fill="transparent"
-            />
-            {/* Animated Active Stroke */}
-            <circle
-              className="timer-stroke"
-              cx="120"
-              cy="120"
-              r={radius}
-              strokeWidth="12"
-              fill="transparent"
-              stroke={tint?.accent || '#5645d4'}
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="round"
-            />
-          </svg>
-
-          {/* Time text centered inside ring */}
-          <div className="timer-center-content">
-            <span className="timer-numbers">{formatTime(secondsRemaining)}</span>
-            <span className="timer-status-sub">
-              {isRunning ? 'IN PROGRESS' : (secondsRemaining === 0 ? 'COMPLETED' : 'PAUSED')}
-            </span>
-          </div>
-        </div>
-
-        {/* Primary Controls */}
-        <div className="timer-controls-row">
-          <button 
-            type="button" 
-            className="control-secondary-btn"
-            onClick={handleReset}
-            title="Reset Timer"
-          >
-            <RotateCcw size={18} />
-          </button>
-
-          <button 
-            type="button" 
-            className="control-primary-btn"
-            onClick={togglePlayPause}
-            style={{ backgroundColor: tint?.accent || '#5645d4' }}
-          >
-            {isRunning ? (
-              <Pause size={24} fill="#ffffff" />
-            ) : (
-              <Play size={24} fill="#ffffff" style={{ marginLeft: 3 }} />
-            )}
-          </button>
-
-          <button 
-            type="button" 
-            className="control-secondary-btn"
-            onClick={handleAddFiveMinutes}
-            title="Add 5 Minutes"
-          >
-            <span className="add-five-label">+5m</span>
-          </button>
-        </div>
-
-        {/* Sound Ambiance Mode Switcher */}
-        <div className="focus-sound-selector">
-          <span className="sound-section-title">
-            <Volume2 size={13} className="inline-icon" />
-            Ambient Focus Audio:
+        {/* Center Readout */}
+        <div className="focus-center-content">
+          <span className="focus-task-tag" style={{ color: tint.badgeText, backgroundColor: tint.iconBg }}>
+            {activity?.category || 'Focus'}
           </span>
-          <div className="sound-chips">
-            {[
-              { id: 'pink', label: 'Pink Noise' },
-              { id: 'rain', label: 'Gentle Rain' },
-              { id: 'white', label: 'White Noise' },
-              { id: 'binaural', label: '432Hz Alpha' },
-              { id: 'none', label: 'Mute' }
-            ].map(snd => (
-              <button
-                key={snd.id}
-                type="button"
-                className={`sound-chip ${soundMode === snd.id ? 'active' : ''}`}
-                onClick={() => {
-                  playClickSound();
-                  setSoundMode(snd.id);
-                }}
-              >
-                {snd.label}
-              </button>
-            ))}
-          </div>
+          <h2 className="focus-time-display">
+            {formatTime(timeLeft)}
+          </h2>
+          <span className="focus-sub-status">
+            {isRunning ? 'in flow...' : 'paused'}
+          </span>
+          <h3 className="focus-active-title" title={activity?.title}>
+            {activity?.title || 'Deep Focus Session'}
+          </h3>
         </div>
+      </div>
 
-        {/* In-Session Subtasks Checklist */}
-        {activity?.subtasks && activity.subtasks.length > 0 && (
-          <div className="focus-checklist-section">
-            <h4 className="checklist-heading">Step-by-Step Focus:</h4>
-            <div className="focus-steps-list">
-              {activity.subtasks.map(step => (
+      {/* Primary Action Controls */}
+      <div className="focus-controls-row">
+        {/* +5 Minutes Button */}
+        <button
+          type="button"
+          className="focus-secondary-ctrl"
+          onClick={handleAddFiveMin}
+          title="Add 5 Minutes"
+        >
+          <Plus size={16} />
+          <span>+5m</span>
+        </button>
+
+        {/* Play / Pause Giant Button */}
+        <button
+          type="button"
+          className="focus-play-giant"
+          style={{ backgroundColor: tint.accent }}
+          onClick={handleTogglePlay}
+        >
+          {isRunning ? (
+            <Pause size={28} fill="#ffffff" color="#ffffff" />
+          ) : (
+            <Play size={28} fill="#ffffff" color="#ffffff" className="play-offset" />
+          )}
+        </button>
+
+        {/* Mark Done Button */}
+        <button
+          type="button"
+          className="focus-secondary-ctrl complete"
+          onClick={handleComplete}
+          title="Complete Task"
+        >
+          <CheckCircle2 size={18} />
+          <span>Done</span>
+        </button>
+      </div>
+
+      {/* Ambient Sound / Focus Noise Selector Pills */}
+      <div className="focus-ambient-section">
+        <span className="ambient-title">SENSORY AUDIO</span>
+        <div className="ambient-pills-row">
+          {[
+            { id: 'pink', label: 'Pink Noise' },
+            { id: 'rain', label: 'Rain Calm' },
+            { id: 'alpha', label: '432Hz Alpha' },
+            { id: 'white', label: 'White Noise' },
+            { id: 'off', label: 'Muted' }
+          ].map((snd) => (
+            <button
+              key={snd.id}
+              type="button"
+              className={`ambient-pill-btn ${activeSound === snd.id ? 'active' : ''}`}
+              onClick={() => {
+                playClickSound();
+                setActiveSound(snd.id);
+              }}
+            >
+              <span>{snd.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Focus Checklist Drawer */}
+      {subtasks.length > 0 && (
+        <div className="focus-checklist-container">
+          <button 
+            type="button" 
+            className="focus-checklist-toggle"
+            onClick={() => setShowSubtasks(!showSubtasks)}
+          >
+            <span>Subtasks ({completedSubs}/{subtasks.length})</span>
+            {showSubtasks ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+
+          {showSubtasks && (
+            <div className="focus-subtasks-drawer">
+              {subtasks.map(s => (
                 <div 
-                  key={step.id} 
-                  className={`focus-step-row ${step.completed ? 'completed' : ''}`}
+                  key={s.id} 
+                  className={`focus-sub-item ${s.completed ? 'done' : ''}`}
                   onClick={() => {
                     playClickSound();
-                    if (onToggleSubtask) {
-                      onToggleSubtask(activity.id, step.id);
-                    }
+                    onToggleSubtask(activity.id, s.id);
                   }}
                 >
-                  <div className={`step-check-circle ${step.completed ? 'checked' : ''}`}>
-                    {step.completed && <Check size={12} strokeWidth={3} />}
-                  </div>
-                  <span className="step-name">{step.title}</span>
+                  <button type="button" className="focus-sub-check">
+                    {s.completed && <Check size={12} strokeWidth={3} />}
+                  </button>
+                  <span>{s.title}</span>
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* Finish Routine Button */}
-        <button
-          type="button"
-          className="focus-finish-routine-btn"
-          onClick={() => handleFinish(false)}
-        >
-          <Award size={16} />
-          <span>Complete & Mark Done</span>
-        </button>
-      </div>
-    </div>
+          )}
+        </div>
+      )}
+    </motion.div>
   );
 }

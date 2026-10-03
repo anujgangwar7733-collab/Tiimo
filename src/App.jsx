@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import AuthView from './components/AuthView';
 import PhoneFrame from './components/PhoneFrame';
 import Header from './components/Header';
 import BottomNavBar from './components/BottomNavBar';
 import TimelineView from './components/TimelineView';
 import FocusTimer from './components/FocusTimer';
-import AiPlannerView from './components/AiPlannerView';
 import TodoView from './components/TodoView';
-import WellbeingView from './components/WellbeingView';
-import TrophiesView from './components/TrophiesView';
+import ProfileView from './components/ProfileView';
 import ActivityModal from './components/ActivityModal';
+import LandingPage from './components/LandingPage';
 
 import { 
   loadActivities, saveActivities, 
@@ -20,11 +21,12 @@ import {
 import { INITIAL_ACTIVITIES, INITIAL_TODOS, INITIAL_MOOD_HISTORY, TROPHIES } from './utils/initialData';
 import { playAmbientSound, stopAmbientSound, playCompletionChime } from './utils/audioEngine';
 import './App.css';
-
-import LandingPage from './components/LandingPage';
 import './components/LandingPage.css';
 
-export default function App() {
+function MainApp() {
+  const { user, isAuthenticated } = useAuth();
+
+  // Root view: 'app' (default) | 'landing'
   const [currentView, setCurrentView] = useState(() => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
@@ -32,16 +34,19 @@ export default function App() {
         return 'landing';
       }
     }
-    return 'app'; // Primary entry point defaults directly to main App / Planner
+    return 'app';
   });
+
   const [activities, setActivities] = useState(() => loadActivities());
   const [todos, setTodos] = useState(() => loadTodos());
   const [moodHistory, setMoodHistory] = useState(() => loadMoods());
   const [trophies, setTrophies] = useState(() => loadTrophies());
   const [streak, setStreak] = useState(() => loadStreak());
-  const [currentTheme, setCurrentTheme] = useState('warm-minimal');
+  const [currentTheme, setCurrentTheme] = useState('calm-cream');
 
+  // Core navigation tabs: 'timeline' | 'todo' | 'focus' | 'profile'
   const [activeTab, setActiveTab] = useState('timeline');
+  const [selectedDayOffset, setSelectedDayOffset] = useState(0); // 0 = Today
   const [focusActivity, setFocusActivity] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState(null);
@@ -120,7 +125,6 @@ export default function App() {
       if (exists) {
         return prev.map(a => a.id === activityData.id ? activityData : a);
       }
-      // sort chronologically
       return [...prev, activityData].sort((a, b) => a.startTime.localeCompare(b.startTime));
     });
     playCompletionChime();
@@ -129,15 +133,6 @@ export default function App() {
   const handleStartFocus = (act) => {
     setFocusActivity(act);
     setActiveTab('focus');
-  };
-
-  // AI Planner action
-  const handleAddGeneratedActivities = (newActivities) => {
-    setActivities(prev => {
-      const merged = [...prev, ...newActivities];
-      return merged.sort((a, b) => a.startTime.localeCompare(b.startTime));
-    });
-    setActiveTab('timeline');
   };
 
   // Todo Actions
@@ -180,11 +175,6 @@ export default function App() {
     setActiveTab('timeline');
   };
 
-  // Wellbeing Actions
-  const handleLogMood = (entry) => {
-    setMoodHistory(prev => [entry, ...prev.slice(0, 6)]);
-  };
-
   // Reset Demo Data
   const handleResetData = () => {
     setActivities(INITIAL_ACTIVITIES);
@@ -196,119 +186,132 @@ export default function App() {
 
   const pendingTodoCount = todos.filter(t => !t.completed).length;
 
+  // View: Landing Page (User explicitly visited)
+  if (currentView === 'landing') {
+    return (
+      <LandingPage onLaunchApp={() => setCurrentView('app')} />
+    );
+  }
+
+  // Auth Gateway: If unauthenticated, show Tiimo Onboarding Screen
+  if (!isAuthenticated) {
+    return (
+      <AuthView onOpenLanding={() => setCurrentView('landing')} />
+    );
+  }
+
+  // Authenticated: Main Tiimo App Experience
   return (
     <div className="app-root-container">
-      {currentView === 'landing' ? (
-        <LandingPage onLaunchApp={() => setCurrentView('app')} />
-      ) : (
-        <PhoneFrame onOpenLanding={() => setCurrentView('landing')}>
-          {/* App Header */}
-          <Header
-            streak={streak}
-            isSoundPlaying={isAmbientSoundPlaying}
-            onToggleSound={toggleAmbientSound}
-            onOpenAddModal={() => {
-              setEditingActivity(null);
-              setIsAddModalOpen(true);
-            }}
-            onOpenLanding={() => setCurrentView('landing')}
-          />
+      <PhoneFrame onOpenLanding={() => setCurrentView('landing')}>
+        {/* Tiimo Header with User Greeting and Horizontal Date Strip */}
+        <Header
+          streak={streak}
+          isSoundPlaying={isAmbientSoundPlaying}
+          onToggleSound={toggleAmbientSound}
+          onOpenAddModal={() => {
+            setEditingActivity(null);
+            setIsAddModalOpen(true);
+          }}
+          selectedDayOffset={selectedDayOffset}
+          onSelectDayOffset={setSelectedDayOffset}
+          onOpenLanding={() => setCurrentView('landing')}
+          onOpenProfile={() => setActiveTab('profile')}
+        />
 
-          {/* Main Screen Viewport */}
-          <main className="app-main-viewport">
-            {activeTab === 'timeline' && (
-              <TimelineView
-                activities={activities}
-                onToggleComplete={handleToggleComplete}
-                onToggleSubtask={handleToggleSubtask}
-                onDeleteActivity={handleDeleteActivity}
-                onEditActivity={(act) => {
-                  setEditingActivity(act);
-                  setIsAddModalOpen(true);
-                }}
-                onStartFocus={handleStartFocus}
-                onOpenAddModal={() => {
-                  setEditingActivity(null);
-                  setIsAddModalOpen(true);
-                }}
-              />
-            )}
+        {/* Main Viewport Container */}
+        <main className="app-main-viewport">
+          {activeTab === 'timeline' && (
+            <TimelineView
+              activities={activities}
+              onToggleComplete={handleToggleComplete}
+              onToggleSubtask={handleToggleSubtask}
+              onDeleteActivity={handleDeleteActivity}
+              onEditActivity={(act) => {
+                setEditingActivity(act);
+                setIsAddModalOpen(true);
+              }}
+              onStartFocus={handleStartFocus}
+              onOpenAddModal={() => {
+                setEditingActivity(null);
+                setIsAddModalOpen(true);
+              }}
+            />
+          )}
 
-            {activeTab === 'focus' && (
-              <FocusTimer
-                activity={focusActivity || activities[0]}
-                onClose={() => {
-                  setFocusActivity(null);
-                  setActiveTab('timeline');
-                }}
-                onCompleteActivity={(id) => {
-                  handleToggleComplete(id);
-                  setActiveTab('timeline');
-                }}
-                onToggleSubtask={handleToggleSubtask}
-              />
-            )}
+          {activeTab === 'focus' && (
+            <FocusTimer
+              activity={focusActivity || activities.find(a => !a.isCompleted) || activities[0]}
+              onClose={() => {
+                setFocusActivity(null);
+                setActiveTab('timeline');
+              }}
+              onCompleteActivity={(id) => {
+                handleToggleComplete(id);
+                setActiveTab('timeline');
+              }}
+              onToggleSubtask={handleToggleSubtask}
+            />
+          )}
 
-            {activeTab === 'ai' && (
-              <AiPlannerView
-                onAddGeneratedActivities={handleAddGeneratedActivities}
-              />
-            )}
+          {activeTab === 'todo' && (
+            <TodoView
+              todos={todos}
+              onToggleTodo={handleToggleTodo}
+              onAddTodo={handleAddTodo}
+              onDeleteTodo={handleDeleteTodo}
+              onScheduleTodoToTimeline={handleScheduleTodoToTimeline}
+            />
+          )}
 
-            {activeTab === 'todo' && (
-              <TodoView
-                todos={todos}
-                onToggleTodo={handleToggleTodo}
-                onAddTodo={handleAddTodo}
-                onDeleteTodo={handleDeleteTodo}
-                onScheduleTodoToTimeline={handleScheduleTodoToTimeline}
-              />
-            )}
+          {activeTab === 'profile' && (
+            <ProfileView
+              trophies={trophies}
+              streak={streak}
+              currentTheme={currentTheme}
+              onChangeTheme={setCurrentTheme}
+              onResetData={handleResetData}
+              onOpenLanding={() => setCurrentView('landing')}
+            />
+          )}
+        </main>
 
-            {activeTab === 'wellbeing' && (
-              <WellbeingView
-                moodHistory={moodHistory}
-                onLogMood={handleLogMood}
-              />
-            )}
+        {/* Floating Docked Bottom Navigation Bar + FAB */}
+        <BottomNavBar
+          activeTab={activeTab}
+          onSelectTab={(tabId) => {
+            if (tabId === 'focus' && !focusActivity) {
+              const target = activities.find(a => !a.isCompleted) || activities[0];
+              setFocusActivity(target);
+            }
+            setActiveTab(tabId);
+          }}
+          onOpenAddModal={() => {
+            setEditingActivity(null);
+            setIsAddModalOpen(true);
+          }}
+          pendingTodoCount={pendingTodoCount}
+        />
 
-            {activeTab === 'trophies' && (
-              <TrophiesView
-                trophies={trophies}
-                streak={streak}
-                currentTheme={currentTheme}
-                onChangeTheme={setCurrentTheme}
-                onResetData={handleResetData}
-                onOpenLanding={() => setCurrentView('landing')}
-              />
-            )}
-          </main>
-
-          {/* Mobile Tab Navigation */}
-          <BottomNavBar
-            activeTab={activeTab}
-            onSelectTab={(tabId) => {
-              if (tabId === 'focus' && !focusActivity) {
-                const target = activities.find(a => !a.isCompleted) || activities[0];
-                setFocusActivity(target);
-              }
-              setActiveTab(tabId);
-            }}
-            pendingTodoCount={pendingTodoCount}
-          />
-
-          {/* Add / Edit Activity Modal */}
-          <ActivityModal
-            isOpen={isAddModalOpen}
-            editingActivity={editingActivity}
-            onClose={() => {
-              setIsAddModalOpen(false);
-              setEditingActivity(null);
-            }}
-            onSave={handleSaveActivity}
-          />
-        </PhoneFrame>
-      )}
+        {/* Create / Edit Activity Modal */}
+        <ActivityModal
+          isOpen={isAddModalOpen}
+          editingActivity={editingActivity}
+          onClose={() => {
+            setIsAddModalOpen(false);
+            setEditingActivity(null);
+          }}
+          onSave={handleSaveActivity}
+        />
+      </PhoneFrame>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <MainApp />
+    </AuthProvider>
   );
 }
