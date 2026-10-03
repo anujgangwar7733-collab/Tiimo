@@ -25,7 +25,15 @@ import LandingPage from './components/LandingPage';
 import './components/LandingPage.css';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState('landing'); // 'landing' | 'app'
+  const [currentView, setCurrentView] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('view') === 'landing' || window.location.hash === '#landing') {
+        return 'landing';
+      }
+    }
+    return 'app'; // Primary entry point defaults directly to main App / Planner
+  });
   const [activities, setActivities] = useState(() => loadActivities());
   const [todos, setTodos] = useState(() => loadTodos());
   const [moodHistory, setMoodHistory] = useState(() => loadMoods());
@@ -190,146 +198,116 @@ export default function App() {
 
   return (
     <div className="app-root-container">
-      {/* Floating View Switcher pill on bottom-right for instant navigation */}
-      <aside aria-label="Global View Switcher" className="global-view-toggle-pill">
-        <button
-          type="button"
-          className={`view-pill-btn ${currentView === 'landing' ? 'active' : ''}`}
-          onClick={() => setCurrentView('landing')}
-        >
-          <span>🌐 Landing Page</span>
-        </button>
-        <button
-          type="button"
-          className={`view-pill-btn ${currentView === 'app' ? 'active' : ''}`}
-          onClick={() => setCurrentView('app')}
-        >
-          <span>📱 Open App</span>
-        </button>
-      </aside>
-
       {currentView === 'landing' ? (
         <LandingPage onLaunchApp={() => setCurrentView('app')} />
       ) : (
-        <div className="app-mode-wrapper animate-fade-in">
-          {/* Top Quick Bar back to Landing */}
-          <div className="app-top-return-bar">
-            <button
-              type="button"
-              className="return-landing-btn"
-              onClick={() => setCurrentView('landing')}
-            >
-              <span>← Back to Landing Page</span>
-            </button>
-            <span className="app-mode-notice">Daily Routine v1.0 • Notion Minimal Design</span>
-          </div>
+        <PhoneFrame onOpenLanding={() => setCurrentView('landing')}>
+          {/* App Header */}
+          <Header
+            streak={streak}
+            isSoundPlaying={isAmbientSoundPlaying}
+            onToggleSound={toggleAmbientSound}
+            onOpenAddModal={() => {
+              setEditingActivity(null);
+              setIsAddModalOpen(true);
+            }}
+            onOpenLanding={() => setCurrentView('landing')}
+          />
 
-          <PhoneFrame>
-            {/* App Header */}
-            <Header
-              streak={streak}
-              isSoundPlaying={isAmbientSoundPlaying}
-              onToggleSound={toggleAmbientSound}
-              onOpenAddModal={() => {
-                setEditingActivity(null);
-                setIsAddModalOpen(true);
-              }}
-            />
+          {/* Main Screen Viewport */}
+          <main className="app-main-viewport">
+            {activeTab === 'timeline' && (
+              <TimelineView
+                activities={activities}
+                onToggleComplete={handleToggleComplete}
+                onToggleSubtask={handleToggleSubtask}
+                onDeleteActivity={handleDeleteActivity}
+                onEditActivity={(act) => {
+                  setEditingActivity(act);
+                  setIsAddModalOpen(true);
+                }}
+                onStartFocus={handleStartFocus}
+                onOpenAddModal={() => {
+                  setEditingActivity(null);
+                  setIsAddModalOpen(true);
+                }}
+              />
+            )}
 
-            {/* Main Screen Viewport */}
-            <main className="app-main-viewport">
-              {activeTab === 'timeline' && (
-                <TimelineView
-                  activities={activities}
-                  onToggleComplete={handleToggleComplete}
-                  onToggleSubtask={handleToggleSubtask}
-                  onDeleteActivity={handleDeleteActivity}
-                  onEditActivity={(act) => {
-                    setEditingActivity(act);
-                    setIsAddModalOpen(true);
-                  }}
-                  onStartFocus={handleStartFocus}
-                  onOpenAddModal={() => {
-                    setEditingActivity(null);
-                    setIsAddModalOpen(true);
-                  }}
-                />
-              )}
+            {activeTab === 'focus' && (
+              <FocusTimer
+                activity={focusActivity || activities[0]}
+                onClose={() => {
+                  setFocusActivity(null);
+                  setActiveTab('timeline');
+                }}
+                onCompleteActivity={(id) => {
+                  handleToggleComplete(id);
+                  setActiveTab('timeline');
+                }}
+                onToggleSubtask={handleToggleSubtask}
+              />
+            )}
 
-              {activeTab === 'focus' && (
-                <FocusTimer
-                  activity={focusActivity || activities[0]}
-                  onClose={() => {
-                    setFocusActivity(null);
-                    setActiveTab('timeline');
-                  }}
-                  onCompleteActivity={(id) => {
-                    handleToggleComplete(id);
-                    setActiveTab('timeline');
-                  }}
-                  onToggleSubtask={handleToggleSubtask}
-                />
-              )}
+            {activeTab === 'ai' && (
+              <AiPlannerView
+                onAddGeneratedActivities={handleAddGeneratedActivities}
+              />
+            )}
 
-              {activeTab === 'ai' && (
-                <AiPlannerView
-                  onAddGeneratedActivities={handleAddGeneratedActivities}
-                />
-              )}
+            {activeTab === 'todo' && (
+              <TodoView
+                todos={todos}
+                onToggleTodo={handleToggleTodo}
+                onAddTodo={handleAddTodo}
+                onDeleteTodo={handleDeleteTodo}
+                onScheduleTodoToTimeline={handleScheduleTodoToTimeline}
+              />
+            )}
 
-              {activeTab === 'todo' && (
-                <TodoView
-                  todos={todos}
-                  onToggleTodo={handleToggleTodo}
-                  onAddTodo={handleAddTodo}
-                  onDeleteTodo={handleDeleteTodo}
-                  onScheduleTodoToTimeline={handleScheduleTodoToTimeline}
-                />
-              )}
+            {activeTab === 'wellbeing' && (
+              <WellbeingView
+                moodHistory={moodHistory}
+                onLogMood={handleLogMood}
+              />
+            )}
 
-              {activeTab === 'wellbeing' && (
-                <WellbeingView
-                  moodHistory={moodHistory}
-                  onLogMood={handleLogMood}
-                />
-              )}
+            {activeTab === 'trophies' && (
+              <TrophiesView
+                trophies={trophies}
+                streak={streak}
+                currentTheme={currentTheme}
+                onChangeTheme={setCurrentTheme}
+                onResetData={handleResetData}
+                onOpenLanding={() => setCurrentView('landing')}
+              />
+            )}
+          </main>
 
-              {activeTab === 'trophies' && (
-                <TrophiesView
-                  trophies={trophies}
-                  streak={streak}
-                  currentTheme={currentTheme}
-                  onChangeTheme={setCurrentTheme}
-                  onResetData={handleResetData}
-                />
-              )}
-            </main>
+          {/* Mobile Tab Navigation */}
+          <BottomNavBar
+            activeTab={activeTab}
+            onSelectTab={(tabId) => {
+              if (tabId === 'focus' && !focusActivity) {
+                const target = activities.find(a => !a.isCompleted) || activities[0];
+                setFocusActivity(target);
+              }
+              setActiveTab(tabId);
+            }}
+            pendingTodoCount={pendingTodoCount}
+          />
 
-            {/* Mobile Tab Navigation */}
-            <BottomNavBar
-              activeTab={activeTab}
-              onSelectTab={(tabId) => {
-                if (tabId === 'focus' && !focusActivity) {
-                  const target = activities.find(a => !a.isCompleted) || activities[0];
-                  setFocusActivity(target);
-                }
-                setActiveTab(tabId);
-              }}
-              pendingTodoCount={pendingTodoCount}
-            />
-
-            {/* Add / Edit Activity Modal */}
-            <ActivityModal
-              isOpen={isAddModalOpen}
-              editingActivity={editingActivity}
-              onClose={() => {
-                setIsAddModalOpen(false);
-                setEditingActivity(null);
-              }}
-              onSave={handleSaveActivity}
-            />
-          </PhoneFrame>
-        </div>
+          {/* Add / Edit Activity Modal */}
+          <ActivityModal
+            isOpen={isAddModalOpen}
+            editingActivity={editingActivity}
+            onClose={() => {
+              setIsAddModalOpen(false);
+              setEditingActivity(null);
+            }}
+            onSave={handleSaveActivity}
+          />
+        </PhoneFrame>
       )}
     </div>
   );

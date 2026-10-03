@@ -1,12 +1,13 @@
 import React from 'react';
-import { Sparkles, Plus, Volume2, VolumeX, Flame, Calendar as CalendarIcon } from 'lucide-react';
+import { Plus, Volume2, VolumeX, Flame, Calendar as CalendarIcon, Globe } from 'lucide-react';
 
 export default function Header({
   streak = 5,
   isSoundPlaying = false,
   onToggleSound,
   onOpenAddModal,
-  activeDate = new Date()
+  activeDate = new Date(),
+  onOpenLanding
 }) {
   const formattedDate = activeDate.toLocaleDateString('en-US', {
     weekday: 'short',
@@ -31,6 +32,20 @@ export default function Header({
         </div>
 
         <div className="header-actions">
+          {/* Website / Landing Page Shortcut */}
+          {onOpenLanding && (
+            <button
+              type="button"
+              className="header-website-btn"
+              onClick={onOpenLanding}
+              title="Visit Landing Page & Product Overview"
+              aria-label="View Landing Page"
+            >
+              <Globe size={15} />
+              <span className="website-btn-text">Website</span>
+            </button>
+          )}
+
           {/* Streak Badge */}
           <div className="streak-pill" title={`${streak} days routine streak!`}>
             <Flame size={14} className="flame-icon" />
@@ -43,6 +58,7 @@ export default function Header({
             className={`sound-toggle-btn ${isSoundPlaying ? 'playing' : ''}`}
             onClick={onToggleSound}
             title={isSoundPlaying ? "Mute ambient sound" : "Play calming pink noise"}
+            aria-label="Toggle ambient noise"
           >
             {isSoundPlaying ? (
               <Volume2 size={16} className="sound-active-icon" />
@@ -57,6 +73,7 @@ export default function Header({
             className="header-add-btn"
             onClick={onOpenAddModal}
             title="Add Activity or Routine"
+            aria-label="Add activity"
           >
             <Plus size={16} strokeWidth={2.5} />
             <span>Add</span>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Award, Flame, Sunrise, Sparkles, CheckCheck, 
-  Heart, Palette, Bell, Volume2, ShieldCheck, RefreshCw, Check
+  Heart, Palette, Bell, Volume2, ShieldCheck, RefreshCw, Check, Globe
 } from 'lucide-react';
 import { APP_THEMES } from '../utils/notionTokens';
 import { playClickSound, playCompletionChime } from '../utils/audioEngine';
@@ -11,7 +11,8 @@ export default function TrophiesView({
   streak = 5,
   currentTheme = 'warm-minimal',
   onChangeTheme,
-  onResetData
+  onResetData,
+  onOpenLanding
 }) {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [visualMode, setVisualMode] = useState('pastel'); // pastel or bold
@@ -212,6 +213,28 @@ export default function TrophiesView({
           )}
         </div>
       </div>
+
+      {/* Website & Features Showcase */}
+      {onOpenLanding && (
+        <div className="settings-section-card landing-shortcut-card">
+          <div className="section-title-row">
+            <Globe size={18} className="inline-icon" />
+            <h3 className="section-heading">Daily Routine Website & Overview</h3>
+          </div>
+          <p className="settings-desc">
+            Explore feature breakdowns, neuroscience principles, pricing plans, and interactive demos.
+          </p>
+          <button
+            type="button"
+            className="visit-landing-page-btn"
+            onClick={onOpenLanding}
+          >
+            <Globe size={15} />
+            <span>View Landing Page</span>
+            <span className="btn-arrow">→</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
