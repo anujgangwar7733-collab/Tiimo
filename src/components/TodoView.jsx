@@ -4,7 +4,7 @@ import {
   CheckCircle2, Circle, Plus, Trash2, ArrowUpRight, 
   Flag, Clock, Sparkles, Filter 
 } from 'lucide-react';
-import { TIIMO_TINTS } from '../utils/tiimoTokens';
+import { TIIMO_TINTS, getCardTint } from '../utils/tiimoTokens';
 import { playClickSound, playCompletionChime } from '../utils/audioEngine';
 
 export default function TodoView({
@@ -12,7 +12,8 @@ export default function TodoView({
   onToggleTodo,
   onAddTodo,
   onDeleteTodo,
-  onScheduleTodoToTimeline
+  onScheduleTodoToTimeline,
+  isDarkMode = false
 }) {
   const [selectedList, setSelectedList] = useState('All');
   const [newTitle, setNewTitle] = useState('');
@@ -54,6 +55,16 @@ export default function TodoView({
   };
 
   const getPriorityStyle = (priority) => {
+    if (isDarkMode) {
+      switch (priority) {
+        case 'High':
+          return { bg: 'rgba(244, 132, 95, 0.22)', text: '#FFAF87', border: 'rgba(244, 132, 95, 0.4)' };
+        case 'Medium':
+          return { bg: 'rgba(255, 209, 102, 0.22)', text: '#FFE082', border: 'rgba(255, 209, 102, 0.4)' };
+        default:
+          return { bg: 'rgba(56, 189, 248, 0.22)', text: '#7DD3FC', border: 'rgba(56, 189, 248, 0.4)' };
+      }
+    }
     switch (priority) {
       case 'High':
         return { bg: '#FFE5D9', text: '#9A3412', border: '#F4845F' };
@@ -178,7 +189,7 @@ export default function TodoView({
           </div>
         ) : (
           filteredTodos.map(item => {
-            const tint = TIIMO_TINTS[item.tintId] || TIIMO_TINTS.mint;
+            const tint = getCardTint(item.tintId, isDarkMode);
             const pStyle = getPriorityStyle(item.priority);
 
             return (

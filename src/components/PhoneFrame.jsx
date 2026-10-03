@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Smartphone, Monitor, Globe } from 'lucide-react';
+import { Smartphone, Monitor, Globe, Sun, Moon } from 'lucide-react';
 
-export default function PhoneFrame({ children, onOpenLanding }) {
+export default function PhoneFrame({ children, onOpenLanding, currentTheme = 'calm-cream', onToggleTheme }) {
   const [isMobileFrame, setIsMobileFrame] = useState(true);
 
   return (
@@ -10,8 +10,8 @@ export default function PhoneFrame({ children, onOpenLanding }) {
       <aside aria-label="Device View Switcher" className="frame-toggle-bar desktop-only-bar">
         <div className="frame-toggle-left">
           <span className="frame-brand-dot"></span>
-          <span className="frame-brand-title">Daily Routine</span>
-          <span className="frame-brand-badge">Notion Style</span>
+          <span className="frame-brand-title">Tiimo Daily Flow</span>
+          <span className="frame-brand-badge">Visual Planner</span>
         </div>
         <div className="frame-toggle-controls">
           <button
@@ -32,6 +32,19 @@ export default function PhoneFrame({ children, onOpenLanding }) {
             <Monitor size={14} />
             <span>Expanded (640px)</span>
           </button>
+
+          {onToggleTheme && (
+            <button
+              type="button"
+              className="frame-btn theme-btn"
+              onClick={onToggleTheme}
+              title={`Switch to ${currentTheme === 'deep-charcoal' ? 'Light' : 'Dark'} mode`}
+            >
+              {currentTheme === 'deep-charcoal' ? <Sun size={14} /> : <Moon size={14} />}
+              <span>{currentTheme === 'deep-charcoal' ? 'Light' : 'Dark'}</span>
+            </button>
+          )}
+
           {onOpenLanding && (
             <button
               type="button"

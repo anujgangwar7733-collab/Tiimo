@@ -1,69 +1,138 @@
 /**
- * Frontend API Client Service for Daily Routine
+ * Production Frontend API Client Service for Tiimo Daily Flow
  * Interacts with Node.js/Express + MongoDB backend
+ * Supports JWT Bearer tokens and HTTP-only cookie sessions
  */
 
 const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const API_BASE_URL = rawApiUrl.replace(/\/+$/, '');
 
+const TOKEN_KEY = 'tiimo_token';
+
+export const getToken = () => {
+  try {
+    return localStorage.getItem(TOKEN_KEY) || localStorage.getItem('daily_routine_token') || null;
+  } catch {
+    return null;
+  }
+};
+
+export const setToken = (token) => {
+  try {
+    if (token) {
+      localStorage.setItem(TOKEN_KEY, token);
+      localStorage.setItem('daily_routine_token', token);
+    } else {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem('daily_routine_token');
+    }
+  } catch (e) {
+    console.error('Failed to persist token:', e);
+  }
+};
+
+export const clearToken = () => {
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem('daily_routine_token');
+    localStorage.removeItem('tiimo_auth_user');
+  } catch (e) {
+    console.error('Failed to clear tokens:', e);
+  }
+};
+
 /**
- * Universal request wrapper with JWT token injection
+ * Universal request wrapper with JWT token injection and credentials
  */
 async function request(endpoint, options = {}) {
-  const token = localStorage.getItem('daily_routine_token');
+  const token = getToken();
 
   const headers = {
     'Content-Type': 'application/json',
-    ...(token && { Authorization: `Bearer ${token}` }),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers
   };
 
   const config = {
     ...options,
-    headers
+    headers,
+    credentials: 'include' // Sends HTTP-only session cookies
   };
 
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
-    const data = await response.json();
+    const url = `${API_BASE_URL}${endpoint}`;
+    const response = await fetch(url, config);
+    
+    // Check if response is empty (e.g. 204 No Content)
+    const contentType = response.headers.get('content-type');
+    const isJson = contentType && contentType.includes('application/json');
+    const data = isJson ? await response.json() : await response.text();
 
     if (!response.ok) {
-      const errorMsg = data.message || `Request failed with status ${response.status}`;
+      const errorMsg = (typeof data === 'object' && data.message) || (typeof data === 'object' && data.error) || `Request failed with status ${response.status}`;
       const err = new Error(errorMsg);
       err.status = response.status;
-      err.errors = data.errors || [];
+      err.code = (typeof data === 'object' && data.code) || 'API_ERROR';
+      err.errors = (typeof data === 'object' && data.errors) || [];
+
+      // Auto-clear invalid session on 401 Unauthorized
+      if (response.status === 401 && endpoint !== '/auth/login' && endpoint !== '/auth/register') {
+        clearToken();
+      }
+
       throw err;
     }
 
     return data;
   } catch (error) {
-    console.error(`API Error on [${options.method || 'GET'} ${endpoint}]:`, error);
+    // If backend is completely offline or unreachable (fetch TypeError)
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      const offlineErr = new Error('Cannot connect to Tiimo cloud server. Please check your connection.');
+      offlineErr.status = 503;
+      offlineErr.code = 'NETWORK_OFFLINE';
+      throw offlineErr;
+    }
     throw error;
   }
 }
 
 // ==========================================
-// Authentication API
+// 1. Authentication API
 // ==========================================
 export const authApi = {
-  register: async (userData) => {
+  register: async (name, email, password) => {
     const data = await request('/auth/register', {
       method: 'POST',
-      body: JSON.stringify(userData)
+      body: JSON.stringify({ name, email, password })
     });
     if (data.token) {
-      localStorage.setItem('daily_routine_token', data.token);
+      setToken(data.token);
     }
     return data;
   },
 
-  login: async (credentials) => {
+  login: async (email, password) => {
     const data = await request('/auth/login', {
       method: 'POST',
-      body: JSON.stringify(credentials)
+      body: JSON.stringify({ email, password })
     });
     if (data.token) {
-      localStorage.setItem('daily_routine_token', data.token);
+      setToken(data.token);
+    }
+    return data;
+  },
+
+  googleLogin: async (credentialOrPayload) => {
+    const body = typeof credentialOrPayload === 'string'
+      ? { credential: credentialOrPayload }
+      : credentialOrPayload;
+
+    const data = await request('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+    if (data.token) {
+      setToken(data.token);
     }
     return data;
   },
@@ -79,17 +148,23 @@ export const authApi = {
     });
   },
 
-  logout: () => {
-    localStorage.removeItem('daily_routine_token');
+  logout: async () => {
+    try {
+      await request('/auth/logout', { method: 'POST' });
+    } catch (e) {
+      // Ignore network errors on logout
+    } finally {
+      clearToken();
+    }
   }
 };
 
 // ==========================================
-// Tasks & Routines Timeline API
+// 2. Tasks & Routine Timeline API
 // ==========================================
 export const taskApi = {
   /**
-   * Fetch daily timeline activities
+   * Fetch daily timeline activities for logged in user on date
    * @param {string} date - Format YYYY-MM-DD
    */
   getByDate: async (date) => {
@@ -98,8 +173,6 @@ export const taskApi = {
 
   /**
    * Fetch tasks across a date range
-   * @param {string} start - Format YYYY-MM-DD
-   * @param {string} end - Format YYYY-MM-DD
    */
   getRange: async (start, end) => {
     return await request(`/tasks/range?start=${start}&end=${end}`);
@@ -116,7 +189,7 @@ export const taskApi = {
   },
 
   /**
-   * Update task (time, status, title, subtasks)
+   * Update task (completion, duration, time, title)
    */
   update: async (id, updates) => {
     return await request(`/tasks/${id}`, {
@@ -136,7 +209,6 @@ export const taskApi = {
 
   /**
    * Reorder timeline activities
-   * @param {Array<{ id: string, order: number, startTime?: string }>} items
    */
   reorder: async (items) => {
     return await request('/tasks/reorder', {
@@ -156,12 +228,9 @@ export const taskApi = {
 };
 
 // ==========================================
-// Focus & Insights API
+// 3. Focus & Insights API
 // ==========================================
 export const insightApi = {
-  /**
-   * Log completed Focus Timer session + Wellbeing check-in
-   */
   logFocusSession: async (sessionData) => {
     return await request('/insights/focus-session', {
       method: 'POST',
@@ -169,10 +238,32 @@ export const insightApi = {
     });
   },
 
-  /**
-   * Fetch weekly stats, active streaks, and completion rate
-   */
   getStats: async () => {
     return await request('/insights/stats');
+  }
+};
+
+// ==========================================
+// 4. Subscriptions & Stripe Paywall API
+// ==========================================
+export const subscriptionApi = {
+  createCheckout: async (plan = 'pro_monthly') => {
+    return await request('/subscription/create-checkout-session', {
+      method: 'POST',
+      body: JSON.stringify({ plan })
+    });
+  },
+
+  getPortal: async () => {
+    return await request('/subscription/portal', {
+      method: 'POST'
+    });
+  },
+
+  demoUpgrade: async (plan = 'pro_monthly') => {
+    return await request('/subscription/demo-upgrade', {
+      method: 'POST',
+      body: JSON.stringify({ plan })
+    });
   }
 };

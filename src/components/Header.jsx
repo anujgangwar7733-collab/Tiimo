@@ -1,6 +1,7 @@
 import React from 'react';
-import { Flame, Volume2, VolumeX, Globe, Plus } from 'lucide-react';
+import { Flame, Volume2, VolumeX, Globe, Plus, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { playClickSound } from '../utils/audioEngine';
 
 export default function Header({
   streak = 5,
@@ -10,7 +11,9 @@ export default function Header({
   selectedDayOffset = 0,
   onSelectDayOffset,
   onOpenLanding,
-  onOpenProfile
+  onOpenProfile,
+  currentTheme = 'calm-cream',
+  onToggleTheme
 }) {
   const { user } = useAuth();
 
@@ -83,6 +86,30 @@ export default function Header({
               <VolumeX size={16} />
             )}
           </button>
+
+          {/* Light / Dark Mode Quick Toggle */}
+          {onToggleTheme && (
+            <button
+              type="button"
+              className={`tiimo-icon-action-btn theme-toggle-btn ${currentTheme === 'deep-charcoal' ? 'dark' : 'light'}`}
+              onClick={() => {
+                playClickSound();
+                onToggleTheme();
+              }}
+              title={
+                currentTheme === 'deep-charcoal'
+                  ? 'Switch to Calm Cream (Light Mode)'
+                  : 'Switch to Deep Charcoal (Dark Mode)'
+              }
+              aria-label="Toggle Light and Dark Mode"
+            >
+              {currentTheme === 'deep-charcoal' ? (
+                <Sun size={16} className="theme-toggle-sun" />
+              ) : (
+                <Moon size={16} className="theme-toggle-moon" />
+              )}
+            </button>
+          )}
 
           {/* Website / Landing Page Shortcut */}
           {onOpenLanding && (

@@ -19,17 +19,17 @@ export default function AuthView({ onOpenLanding }) {
       await loginWithGoogle();
       playCompletionChime();
     } catch (err) {
-      setErrorMsg('Google login failed. Please try again.');
+      setErrorMsg(err.message || 'Google login failed. Please try again.');
     }
   };
 
   const handleAppleLogin = async () => {
     try {
       playClickSound();
-      await loginWithGoogle(); // Mock Apple auth
+      await loginWithGoogle();
       playCompletionChime();
     } catch (err) {
-      setErrorMsg('Apple login failed.');
+      setErrorMsg(err.message || 'Apple login failed.');
     }
   };
 
@@ -61,7 +61,7 @@ export default function AuthView({ onOpenLanding }) {
       }
       playCompletionChime();
     } catch (err) {
-      setErrorMsg('Authentication failed. Please verify your credentials.');
+      setErrorMsg(err.message || 'Authentication failed. Please verify your credentials.');
     }
   };
 

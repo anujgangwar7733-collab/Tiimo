@@ -68,20 +68,20 @@
   --shadow-popup: 0 12px 36px rgba(10, 21, 48, 0.14);
 }
 
-/* Theme Dark Slate Overrides */
-[data-theme="dark-slate"] {
-  --color-canvas: #191919;
-  --color-surface: #202020;
-  --color-surface-soft: #272727;
-  --color-hairline: #333333;
-  --color-hairline-soft: #2c2c2c;
-  --color-hairline-strong: #454545;
+/* Theme Dark Mode Overrides (Dark Slate & Deep Charcoal) */
+[data-theme="dark-slate"], [data-theme="deep-charcoal"] {
+  --color-canvas: #1F1F1F;
+  --color-surface: #292929;
+  --color-surface-soft: #242424;
+  --color-hairline: rgba(255, 255, 255, 0.08);
+  --color-hairline-soft: rgba(255, 255, 255, 0.05);
+  --color-hairline-strong: rgba(255, 255, 255, 0.15);
   --color-ink-deep: #ffffff;
-  --color-ink: #f0eeec;
-  --color-charcoal: #e5e3df;
-  --color-slate: #bbb8b1;
-  --color-steel: #8e8b84;
-  --color-muted: #66645f;
+  --color-ink: #f8f9fa;
+  --color-charcoal: #e2e8f0;
+  --color-slate: #cbd5e1;
+  --color-steel: #94a3b8;
+  --color-muted: #64748b;
   
   --card-tint-peach: #382417;
   --card-tint-rose: #3b1c2b;

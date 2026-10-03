@@ -6,7 +6,7 @@ import {
   CheckCircle2, Circle, MoreVertical, Trash2, Edit3, 
   ChevronDown, ChevronUp, Check, AlertCircle, Plus
 } from 'lucide-react';
-import { TIIMO_TINTS } from '../utils/tiimoTokens';
+import { TIIMO_TINTS, getCardTint } from '../utils/tiimoTokens';
 import { playClickSound, playCompletionChime } from '../utils/audioEngine';
 
 // Icon Map
@@ -31,7 +31,10 @@ export default function TimelineView({
   onDeleteActivity,
   onEditActivity,
   onStartFocus,
-  onOpenAddModal
+  onOpenAddModal,
+  isDarkMode = false,
+  isLoading = false,
+  syncError = null
 }) {
   const [expandedCards, setExpandedCards] = useState({});
   const [activeMenuId, setActiveMenuId] = useState(null);
@@ -117,7 +120,20 @@ export default function TimelineView({
 
       {/* Activities Timeline Stream */}
       <div className="tiimo-timeline-stream">
-        {activities.length === 0 ? (
+        {syncError && (
+          <div className="tiimo-sync-banner">
+            <AlertCircle size={15} />
+            <span>{syncError}</span>
+          </div>
+        )}
+
+        {isLoading && activities.length === 0 ? (
+          <div className="tiimo-skeleton-stream">
+            <div className="tiimo-skeleton-card" />
+            <div className="tiimo-skeleton-card" />
+            <div className="tiimo-skeleton-card" />
+          </div>
+        ) : activities.length === 0 ? (
           <div className="tiimo-empty-timeline">
             <div className="empty-icon-circle">
               <Sparkles size={28} />
@@ -135,7 +151,7 @@ export default function TimelineView({
           </div>
         ) : (
           activities.map((act, index) => {
-            const tint = TIIMO_TINTS[act.tintId] || TIIMO_TINTS.mint;
+            const tint = getCardTint(act.tintId, isDarkMode);
             const IconComponent = ICON_MAP[act.icon] || ICON_MAP.Default;
             const isExpanded = !!expandedCards[act.id];
             const statusInfo = getActivityStatus(act.startTime, act.durationMinutes, act.isCompleted);

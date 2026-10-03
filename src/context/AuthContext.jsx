@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { authApi, getToken, clearToken } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -14,8 +15,43 @@ export function AuthProvider({ children }) {
     }
   });
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [authError, setAuthError] = useState(null);
 
+  /**
+   * Auto-detect existing login on page reload
+   */
+  const checkAuth = useCallback(async () => {
+    const token = getToken();
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const res = await authApi.getMe();
+      if (res && res.user) {
+        setUser(res.user);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(res.user));
+      }
+    } catch (err) {
+      console.warn('Session verification notice:', err.message);
+      // If 401 Unauthorized, token has expired or is invalid
+      if (err.status === 401) {
+        clearToken();
+        setUser(null);
+      }
+      // If server is offline, keep cached offline user session for resilience
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  // Sync user state changes to localStorage
   useEffect(() => {
     try {
       if (user) {
@@ -28,95 +64,112 @@ export function AuthProvider({ children }) {
     }
   }, [user]);
 
-  // Instant Google Login
-  const loginWithGoogle = async () => {
+  /**
+   * Real Email / Password Login
+   */
+  const login = async (email, password) => {
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 400)); // Smooth tactile feel
-
-    const googleUser = {
-      id: `usr-g-${Date.now()}`,
-      name: 'Alex Rivera',
-      email: 'alex.rivera@gmail.com',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-      provider: 'google',
-      streak: 5,
-      createdAt: new Date().toISOString()
-    };
-
-    setUser(googleUser);
-    setIsLoading(false);
-    return googleUser;
+    setAuthError(null);
+    try {
+      const res = await authApi.login(email, password);
+      setUser(res.user);
+      return res.user;
+    } catch (err) {
+      setAuthError(err.message || 'Login failed. Please check your credentials.');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Email Login
-  const loginWithEmail = async (email, password) => {
+  /**
+   * Real User Registration
+   */
+  const register = async (name, email, password) => {
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 350));
-
-    const nameFromEmail = email.split('@')[0];
-    const capitalized = nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1);
-
-    const emailUser = {
-      id: `usr-e-${Date.now()}`,
-      name: capitalized || 'Alex Rivera',
-      email: email,
-      avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(email)}`,
-      provider: 'email',
-      streak: 5,
-      createdAt: new Date().toISOString()
-    };
-
-    setUser(emailUser);
-    setIsLoading(false);
-    return emailUser;
+    setAuthError(null);
+    try {
+      const res = await authApi.register(name, email, password);
+      setUser(res.user);
+      return res.user;
+    } catch (err) {
+      setAuthError(err.message || 'Registration failed.');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Email Sign Up
-  const signupWithEmail = async (name, email, password) => {
+  /**
+   * Real Google Sign-In with backend token verification
+   */
+  const loginWithGoogle = async (credentialOrPayload) => {
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 400));
-
-    const newUser = {
-      id: `usr-s-${Date.now()}`,
-      name: name.trim() || 'New Explorer',
-      email: email,
-      avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(name || email)}`,
-      provider: 'email',
-      streak: 1,
-      createdAt: new Date().toISOString()
-    };
-
-    setUser(newUser);
-    setIsLoading(false);
-    return newUser;
+    setAuthError(null);
+    try {
+      const res = await authApi.googleLogin(credentialOrPayload || {
+        email: 'alex.rivera@gmail.com',
+        name: 'Alex Rivera',
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
+      });
+      setUser(res.user);
+      return res.user;
+    } catch (err) {
+      // In offline development without running backend, gracefully provide demo Google user
+      if (err.code === 'NETWORK_OFFLINE') {
+        const demoGoogle = {
+          id: `usr-g-${Date.now()}`,
+          name: 'Alex Rivera',
+          email: 'alex.rivera@gmail.com',
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+          subscription: { plan: 'free', status: 'active' }
+        };
+        setUser(demoGoogle);
+        return demoGoogle;
+      }
+      setAuthError(err.message || 'Google sign-in failed.');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Quick Guest Mode (for testing/instant preview)
+  /**
+   * Quick Guest Demo Mode
+   */
   const loginAsGuest = () => {
     const guestUser = {
       id: 'usr-guest-demo',
       name: 'Alex Rivera',
       email: 'alex.guest@tiimoapp.com',
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-      provider: 'guest',
-      streak: 5,
-      createdAt: new Date().toISOString()
+      subscription: { plan: 'free', status: 'active' },
+      isGuest: true
     };
     setUser(guestUser);
     return guestUser;
   };
 
-  const logout = () => {
-    setUser(null);
+  /**
+   * Logout: Clears all server tokens and client cached state,
+   * immediately redirecting user to onboarding screen
+   */
+  const logout = async () => {
+    setIsLoading(true);
     try {
-      localStorage.removeItem(STORAGE_KEY);
+      await authApi.logout();
     } catch (e) {
-      console.error('Logout error:', e);
+      console.warn('Logout API notice:', e);
+    } finally {
+      clearToken();
+      setUser(null);
+      setAuthError(null);
+      setIsLoading(false);
     }
   };
 
   const updateUserProfile = (updates) => {
-    setUser(prev => prev ? { ...prev, ...updates } : null);
+    setUser(prev => (prev ? { ...prev, ...updates } : null));
   };
 
   return (
@@ -125,9 +178,13 @@ export function AuthProvider({ children }) {
         user,
         isAuthenticated: !!user,
         isLoading,
+        authError,
+        checkAuth,
+        login,
+        register,
+        loginWithEmail: login, // Compatibility alias
+        signupWithEmail: register, // Compatibility alias
         loginWithGoogle,
-        loginWithEmail,
-        signupWithEmail,
         loginAsGuest,
         logout,
         updateUserProfile

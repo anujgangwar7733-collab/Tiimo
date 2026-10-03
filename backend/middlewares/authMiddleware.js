@@ -4,21 +4,29 @@ import { ApiError } from '../utils/ApiError.js';
 
 export const protect = async (req, res, next) => {
   try {
-    let token;
+    let token = null;
 
+    // 1. Check Authorization Bearer header
     if (
       req.headers.authorization &&
       req.headers.authorization.startsWith('Bearer')
     ) {
       token = req.headers.authorization.split(' ')[1];
+    } 
+    // 2. Check HTTP-only cookie
+    else if (req.cookies && req.cookies.token) {
+      token = req.cookies.token;
     }
 
     if (!token) {
-      throw new ApiError(401, 'Authentication token required. Please log in.');
+      throw new ApiError(401, 'Authentication required. Please log in.');
     }
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(
+      token, 
+      process.env.JWT_SECRET || 'tiimo_cloud_production_super_secret_jwt_key_2026'
+    );
 
     // Find user by ID
     const user = await User.findById(decoded.id);
@@ -27,6 +35,7 @@ export const protect = async (req, res, next) => {
     }
 
     req.user = user;
+    req.user.id = user._id.toString();
     next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {
@@ -38,3 +47,6 @@ export const protect = async (req, res, next) => {
     next(error);
   }
 };
+
+// Alias requested in architectural specs
+export const requireAuth = protect;

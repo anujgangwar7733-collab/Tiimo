@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { 
   Award, Flame, Sunrise, Sparkles, CheckCheck, 
   Heart, Palette, Volume2, ShieldCheck, RefreshCw, 
-  Check, Globe, LogOut, User, Mail, Shield
+  Check, Globe, LogOut, User, Mail, Shield, Sun, Moon
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { TIIMO_THEMES } from '../utils/tiimoTokens';
@@ -109,29 +109,52 @@ export default function ProfileView({
         </div>
       </div>
 
-      {/* 3. Theme & Appearance */}
+      {/* 3. Theme & Atmosphere (Light & Dark Mode) */}
       <div className="profile-section-card">
         <div className="section-title-row">
           <Palette size={18} className="section-icon" />
-          <h4>Theme & Atmosphere</h4>
+          <div className="section-title-text-group">
+            <h4>Theme & Atmosphere</h4>
+            <span className="section-subtitle">Choose between soothing daylight or deep nighttime rest</span>
+          </div>
         </div>
 
-        <div className="themes-selector-row">
+        <div className="theme-options-grid">
           {TIIMO_THEMES.map(theme => {
             const isSelected = currentTheme === theme.id;
+            const isDark = theme.id === 'deep-charcoal';
+
             return (
               <button
                 key={theme.id}
                 type="button"
-                className={`theme-pill-btn ${isSelected ? 'active' : ''}`}
+                className={`theme-visual-card ${isSelected ? 'active' : ''} ${isDark ? 'card-dark-theme' : 'card-light-theme'}`}
                 onClick={() => {
                   playClickSound();
                   onChangeTheme(theme.id);
                 }}
               >
-                <span className="theme-color-dot" style={{ backgroundColor: theme.bg, border: '1px solid #ccc' }} />
-                <span>{theme.name}</span>
-                {isSelected && <span className="theme-check">✓</span>}
+                <div className="theme-card-top-row">
+                  <div className="theme-icon-badge">
+                    {isDark ? <Moon size={16} /> : <Sun size={16} />}
+                  </div>
+                  <span className="theme-badge-status">
+                    {isSelected ? 'Active' : 'Select'}
+                  </span>
+                </div>
+
+                <div className="theme-card-body">
+                  <h5 className="theme-card-title">{theme.name}</h5>
+                  <span className="theme-card-mode">{theme.modeLabel}</span>
+                  <p className="theme-card-desc">{theme.desc}</p>
+                </div>
+
+                {/* Live Swatch Preview */}
+                <div className="theme-swatch-preview">
+                  <span className="swatch-bg" style={{ backgroundColor: theme.bg }} />
+                  <span className="swatch-surface" style={{ backgroundColor: theme.surface }} />
+                  <span className="swatch-primary" style={{ backgroundColor: theme.primary }} />
+                </div>
               </button>
             );
           })}
