@@ -13,7 +13,8 @@ export default function Header({
   onOpenLanding,
   onOpenProfile,
   currentTheme = 'calm-cream',
-  onToggleTheme
+  onToggleTheme,
+  onOpenInsights
 }) {
   const { user } = useAuth();
 
@@ -67,7 +68,16 @@ export default function Header({
 
         <div className="tiimo-header-actions">
           {/* Streak Badge */}
-          <div className="tiimo-streak-pill" title={`${streak} days routine streak!`}>
+          <div 
+            className="tiimo-streak-pill" 
+            title={`${streak} days routine streak! Tap to view habit heatmap & insights`}
+            onClick={() => {
+              playClickSound();
+              if (onOpenInsights) onOpenInsights();
+            }}
+            role="button"
+            tabIndex={0}
+          >
             <Flame size={14} className="streak-flame-icon" />
             <span className="streak-number">{streak}</span>
           </div>

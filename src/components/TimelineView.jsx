@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { TIIMO_TINTS, getCardTint } from '../utils/tiimoTokens';
 import { playClickSound, playCompletionChime } from '../utils/audioEngine';
+import MoodTracker from './MoodTracker';
 
 // Icon Map
 const ICON_MAP = {
@@ -117,6 +118,9 @@ export default function TimelineView({
           />
         </div>
       </div>
+
+      {/* 1-Tap Daily Mindful Mood Check-in */}
+      <MoodTracker isDarkMode={isDarkMode} />
 
       {/* Activities Timeline Stream */}
       <div className="tiimo-timeline-stream">

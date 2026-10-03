@@ -15,7 +15,8 @@ export default function ProfileView({
   currentTheme = 'calm-cream',
   onChangeTheme,
   onResetData,
-  onOpenLanding
+  onOpenLanding,
+  onOpenInsights
 }) {
   const { user, logout } = useAuth();
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -60,7 +61,16 @@ export default function ProfileView({
         </div>
 
         {/* Streak & Consistency Heatmap */}
-        <div className="profile-streak-box">
+        <div 
+          className="profile-streak-box clickable-profile-card"
+          onClick={() => {
+            playClickSound();
+            if (onOpenInsights) onOpenInsights();
+          }}
+          role="button"
+          tabIndex={0}
+          title="Tap to view 30-Day Habit Heatmap & Flow Insights"
+        >
           <div className="streak-stat-header">
             <div className="streak-flame-circle">
               <Flame size={20} className="flame-wiggle" />
@@ -69,6 +79,7 @@ export default function ProfileView({
               <span className="streak-label">ACTIVE STREAK</span>
               <h4 className="streak-days">{streak} Days in Flow</h4>
             </div>
+            <span className="streak-open-hint">View Heatmap →</span>
           </div>
 
           <div className="week-dots-row">
@@ -85,24 +96,37 @@ export default function ProfileView({
       </div>
 
       {/* 2. Achievements & Badges */}
-      <div className="profile-section-card">
+      <div 
+        className="profile-section-card clickable-profile-card"
+        onClick={() => {
+          playClickSound();
+          if (onOpenInsights) onOpenInsights();
+        }}
+        role="button"
+        tabIndex={0}
+        title="Tap to view all achievements and trophies"
+      >
         <div className="section-title-row">
           <Award size={18} className="section-icon" />
-          <h4>Achievements & Badges</h4>
+          <div className="section-title-text-group">
+            <h4>Achievements & Badges</h4>
+            <span className="section-subtitle">Tap to explore your trophy cabinet & rewards</span>
+          </div>
+          <span className="streak-open-hint">View All →</span>
         </div>
 
         <div className="trophies-mini-grid">
-          {trophies.map(trophy => (
+          {trophies.slice(0, 4).map(trophy => (
             <div 
-              key={trophy.id} 
-              className={`trophy-pill ${trophy.unlocked ? 'unlocked' : 'locked'}`}
+              key={trophy.id || trophy.key} 
+              className={`trophy-pill ${trophy.unlocked || trophy.isUnlocked ? 'unlocked' : 'locked'}`}
             >
               <div className="trophy-pill-icon">
                 <Sparkles size={16} />
               </div>
               <div className="trophy-pill-text">
                 <span className="t-title">{trophy.title}</span>
-                <span className="t-status">{trophy.unlocked ? '✓ Unlocked' : 'In progress'}</span>
+                <span className="t-status">{(trophy.unlocked || trophy.isUnlocked) ? '✓ Unlocked' : 'In progress'}</span>
               </div>
             </div>
           ))}

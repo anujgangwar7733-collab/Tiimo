@@ -12,6 +12,7 @@ import authRoutes from './routes/authRoutes.js';
 import taskRoutes from './routes/taskRoutes.js';
 import insightRoutes from './routes/insightRoutes.js';
 import subscriptionRoutes from './routes/subscriptionRoutes.js';
+import gamificationRoutes from './routes/gamificationRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -88,6 +89,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/insights', insightRoutes);
 app.use('/api/subscription', subscriptionRoutes);
+app.use('/api/gamification', gamificationRoutes);
 
 // Catch 404 for unhandled routes
 app.use((req, res, next) => {

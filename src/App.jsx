@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { GamificationProvider, useGamification } from './context/GamificationContext';
 import AuthView from './components/AuthView';
 import PhoneFrame from './components/PhoneFrame';
 import Header from './components/Header';
@@ -8,8 +9,10 @@ import TimelineView from './components/TimelineView';
 import FocusTimer from './components/FocusTimer';
 import TodoView from './components/TodoView';
 import ProfileView from './components/ProfileView';
+import InsightsView from './components/InsightsView';
 import ActivityModal from './components/ActivityModal';
 import LandingPage from './components/LandingPage';
+import { Sparkles } from 'lucide-react';
 
 import { 
   loadActivities, saveActivities, 
@@ -26,6 +29,8 @@ import './components/LandingPage.css';
 
 function MainApp() {
   const { user, isAuthenticated } = useAuth();
+  const { streak: gamificationStreak, onTaskCompleted, milestoneCelebrated, trophies: gamifiedTrophies } = useGamification();
+  const [showInsightsModal, setShowInsightsModal] = useState(false);
 
   // Root view: 'app' (default) | 'landing'
   const [currentView, setCurrentView] = useState(() => {
@@ -43,6 +48,8 @@ function MainApp() {
   const [moodHistory, setMoodHistory] = useState(() => loadMoods());
   const [trophies, setTrophies] = useState(() => loadTrophies());
   const [streak, setStreak] = useState(() => loadStreak());
+  const currentStreakNumber = gamificationStreak?.currentStreak ?? streak;
+  const activeTrophies = (gamifiedTrophies && gamifiedTrophies.length > 0) ? gamifiedTrophies : trophies;
   const [currentTheme, setCurrentTheme] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('tiimo_theme');
@@ -187,6 +194,9 @@ function MainApp() {
         nextState = !act.isCompleted;
         if (nextState) {
           playCompletionChime();
+          if (onTaskCompleted) {
+            onTaskCompleted();
+          }
         }
         return { ...act, isCompleted: nextState };
       }
@@ -362,7 +372,7 @@ function MainApp() {
       >
         {/* Tiimo Header with User Greeting and Horizontal Date Strip */}
         <Header
-          streak={streak}
+          streak={currentStreakNumber}
           isSoundPlaying={isAmbientSoundPlaying}
           onToggleSound={toggleAmbientSound}
           onOpenAddModal={() => {
@@ -375,6 +385,7 @@ function MainApp() {
           onOpenProfile={() => setActiveTab('profile')}
           currentTheme={currentTheme}
           onToggleTheme={toggleTheme}
+          onOpenInsights={() => setShowInsightsModal(true)}
         />
 
         {/* Main Viewport Container */}
@@ -429,13 +440,14 @@ function MainApp() {
 
           {activeTab === 'profile' && (
             <ProfileView
-              trophies={trophies}
-              streak={streak}
+              trophies={activeTrophies}
+              streak={currentStreakNumber}
               currentTheme={currentTheme}
               onChangeTheme={setCurrentTheme}
               onToggleTheme={toggleTheme}
               onResetData={handleResetData}
               onOpenLanding={() => setCurrentView('landing')}
+              onOpenInsights={() => setShowInsightsModal(true)}
             />
           )}
         </main>
@@ -468,6 +480,23 @@ function MainApp() {
           onSave={handleSaveActivity}
           isDarkMode={isDarkMode}
         />
+
+        {/* Gamification & Consistency Insights Modal / Drawer */}
+        {showInsightsModal && (
+          <div className="tiimo-modal-backdrop" onClick={() => setShowInsightsModal(false)}>
+            <div className="tiimo-insights-modal-content" onClick={(e) => e.stopPropagation()}>
+              <InsightsView onClose={() => setShowInsightsModal(false)} isDarkMode={isDarkMode} />
+            </div>
+          </div>
+        )}
+
+        {/* Milestone Celebration Floating Toast */}
+        {milestoneCelebrated && (
+          <div className="tiimo-celebration-toast animate-bounce-in">
+            <Sparkles size={16} />
+            <span>{milestoneCelebrated}</span>
+          </div>
+        )}
       </PhoneFrame>
     </div>
   );
@@ -476,7 +505,9 @@ function MainApp() {
 export default function App() {
   return (
     <AuthProvider>
-      <MainApp />
+      <GamificationProvider>
+        <MainApp />
+      </GamificationProvider>
     </AuthProvider>
   );
 }

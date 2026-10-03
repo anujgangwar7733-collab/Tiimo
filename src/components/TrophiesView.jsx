@@ -1,240 +1,120 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { motion } from 'framer-motion';
 import { 
-  Award, Flame, Sunrise, Sparkles, CheckCheck, 
-  Heart, Palette, Bell, Volume2, ShieldCheck, RefreshCw, Check, Globe
+  Sunrise, Sparkles, Flame, Award, Heart, CheckCheck, 
+  Lock, Check, Trophy as TrophyIcon, ChevronLeft 
 } from 'lucide-react';
-import { APP_THEMES } from '../utils/notionTokens';
-import { playClickSound, playCompletionChime } from '../utils/audioEngine';
+import { useGamification } from '../context/GamificationContext';
 
-export default function TrophiesView({
-  trophies = [],
-  streak = 5,
-  currentTheme = 'warm-minimal',
-  onChangeTheme,
-  onResetData,
-  onOpenLanding
-}) {
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [visualMode, setVisualMode] = useState('pastel'); // pastel or bold
-  const [resetConfirm, setResetConfirm] = useState(false);
+const BADGE_ICONS = {
+  early_bird: Sunrise,
+  deep_diver: Sparkles,
+  streak_7: Flame,
+  task_crusher: Award,
+  mindful_soul: Heart,
+  flow_initiate: CheckCheck
+};
 
-  const trophyIconMap = {
-    Sunrise,
-    Flame,
-    Sparkles,
-    Award,
-    Heart,
-    CheckCheck
-  };
+export default function TrophiesView({ onBack, isDarkMode = false }) {
+  const { trophies, streak, triggerConfettiCelebration } = useGamification();
 
-  const daysOfWeek = [
-    { day: 'M', completed: true },
-    { day: 'T', completed: true },
-    { day: 'W', completed: true },
-    { day: 'T', completed: true },
-    { day: 'F', completed: true },
-    { day: 'S', completed: true },
-    { day: 'S', completed: false }
-  ];
+  const unlockedCount = trophies.filter(t => t.isUnlocked).length;
+  const totalCount = trophies.length;
 
   return (
-    <div className="trophies-view-container animate-fade-in">
-      {/* Streak Hero Card */}
-      <div className="streak-hero-card">
-        <div className="streak-hero-top">
-          <div className="flame-badge-big">
-            <Flame size={28} className="flame-animate" />
-          </div>
-          <div>
-            <span className="streak-label">ACTIVE STREAK</span>
-            <h2 className="streak-number">{streak} Days</h2>
-            <p className="streak-sub">You've followed your routines consistently this week!</p>
-          </div>
-        </div>
-
-        {/* Weekly Heatmap Row */}
-        <div className="streak-week-row">
-          {daysOfWeek.map((d, i) => (
-            <div key={i} className="week-day-col">
-              <span className="week-day-letter">{d.day}</span>
-              <div className={`week-day-dot ${d.completed ? 'completed' : ''}`}>
-                {d.completed && <Check size={12} strokeWidth={3} />}
-              </div>
-            </div>
-          ))}
+    <div className="tiimo-trophies-container animate-fade-in">
+      {/* Header bar */}
+      <div className="trophies-header-row">
+        {onBack && (
+          <button 
+            type="button" 
+            className="trophies-back-btn" 
+            onClick={onBack}
+            aria-label="Go back"
+          >
+            <ChevronLeft size={20} />
+          </button>
+        )}
+        <div className="trophies-header-titles">
+          <h3 className="trophies-main-title">Achievements & Badges</h3>
+          <span className="trophies-sub">Celebrate your mindful routine milestones</span>
         </div>
       </div>
 
-      {/* Trophies & Rewards Grid */}
-      <div className="trophies-section">
-        <div className="section-title-row">
-          <Award size={18} className="inline-icon" />
-          <h3 className="section-heading">Achievements & Badges</h3>
+      {/* Hero Stats Card */}
+      <div className="trophies-hero-banner">
+        <div className="trophy-cup-circle">
+          <TrophyIcon size={26} className="trophy-bounce-icon" />
         </div>
+        <div className="hero-text-block">
+          <span className="hero-progress-label">YOUR TROPHY CABINET</span>
+          <h4 className="hero-unlocked-score">
+            {unlockedCount} of {totalCount} Badges Unlocked
+          </h4>
+          <div className="hero-score-bar-track">
+            <div 
+              className="hero-score-bar-fill"
+              style={{ width: `${Math.round((unlockedCount / totalCount) * 100)}%` }}
+            />
+          </div>
+        </div>
+      </div>
 
-        <div className="trophies-grid">
-          {trophies.map(trophy => {
-            const Icon = trophyIconMap[trophy.icon] || Award;
-            return (
-              <div 
-                key={trophy.id} 
-                className={`trophy-card ${trophy.unlocked ? 'unlocked' : 'locked'}`}
-              >
-                <div className="trophy-icon-circle">
+      {/* Badges Grid */}
+      <div className="trophies-badges-grid">
+        {trophies.map((badge, idx) => {
+          const Icon = BADGE_ICONS[badge.key] || Award;
+          const isUnlocked = !!badge.isUnlocked;
+
+          return (
+            <motion.div
+              key={badge.key}
+              className={`badge-card ${isUnlocked ? 'is-unlocked' : 'is-locked'}`}
+              whileHover={{ y: -3, scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => {
+                if (isUnlocked) {
+                  triggerConfettiCelebration(`Badge: ${badge.title}! 🏆`);
+                }
+              }}
+              layout
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.05 }}
+            >
+              <div className="badge-card-top">
+                <div className={`badge-icon-disc ${isUnlocked ? 'unlocked-glow' : 'locked-disc'}`}>
                   <Icon size={22} />
                 </div>
-                <div className="trophy-info">
-                  <h4 className="trophy-title">{trophy.title}</h4>
-                  <p className="trophy-desc">{trophy.desc}</p>
-                  <span className="trophy-status-pill">
-                    {trophy.unlocked ? `✓ ${trophy.date}` : trophy.date}
-                  </span>
-                </div>
+                <span className={`badge-status-pill ${isUnlocked ? 'pill-unlocked' : 'pill-locked'}`}>
+                  {isUnlocked ? (
+                    <>
+                      <Check size={11} strokeWidth={3} />
+                      <span>Unlocked</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lock size={11} />
+                      <span>In Progress</span>
+                    </>
+                  )}
+                </span>
               </div>
-            );
-          })}
-        </div>
-      </div>
 
-      {/* Make it Yours / Notion Design System Themes */}
-      <div className="settings-section-card">
-        <div className="section-title-row">
-          <Palette size={18} className="inline-icon" />
-          <h3 className="section-heading">Make it Yours (Theme & Style)</h3>
-        </div>
-        <p className="settings-desc">Choose from curated Notion-inspired palette themes:</p>
+              <div className="badge-info-block">
+                <h5 className="badge-title">{badge.title}</h5>
+                <p className="badge-desc">{badge.description}</p>
+              </div>
 
-        <div className="themes-grid">
-          {APP_THEMES.map(theme => {
-            const isSelected = currentTheme === theme.id;
-            return (
-              <button
-                key={theme.id}
-                type="button"
-                className={`theme-card-btn ${isSelected ? 'selected' : ''}`}
-                onClick={() => {
-                  playClickSound();
-                  onChangeTheme(theme.id);
-                }}
-              >
-                <div className="theme-color-swatches">
-                  <span className="color-dot" style={{ backgroundColor: theme.primary }} />
-                  <span className="color-dot" style={{ backgroundColor: theme.bg, border: '1px solid #ccc' }} />
-                  <span className="color-dot" style={{ backgroundColor: theme.surface }} />
+              {isUnlocked && badge.unlockedAt && (
+                <div className="badge-unlocked-date">
+                  <span>Earned {new Date(badge.unlockedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                 </div>
-                <span className="theme-name">{theme.name}</span>
-                {isSelected && <span className="theme-check">✓ Active</span>}
-              </button>
-            );
-          })}
-        </div>
+              )}
+            </motion.div>
+          );
+        })}
       </div>
-
-      {/* Neurodiversity & Audio Preferences */}
-      <div className="settings-section-card">
-        <div className="section-title-row">
-          <ShieldCheck size={18} className="inline-icon" />
-          <h3 className="section-heading">Focus & Sensory Comfort</h3>
-        </div>
-
-        <div className="preference-row">
-          <div>
-            <span className="pref-title">Tactile Audio Chimes</span>
-            <span className="pref-desc">Gentle tones on task and timer completions</span>
-          </div>
-          <button
-            type="button"
-            className={`toggle-switch ${soundEnabled ? 'on' : ''}`}
-            onClick={() => {
-              playClickSound();
-              setSoundEnabled(!soundEnabled);
-            }}
-          >
-            <span className="toggle-thumb" />
-          </button>
-        </div>
-
-        <div className="preference-row">
-          <div>
-            <span className="pref-title">Visual Layout Mode</span>
-            <span className="pref-desc">Soft pastel tints or high-contrast focus</span>
-          </div>
-          <div className="mode-toggle-group">
-            <button
-              type="button"
-              className={`mode-btn ${visualMode === 'pastel' ? 'active' : ''}`}
-              onClick={() => setVisualMode('pastel')}
-            >
-              Pastel Tints
-            </button>
-            <button
-              type="button"
-              className={`mode-btn ${visualMode === 'bold' ? 'active' : ''}`}
-              onClick={() => setVisualMode('bold')}
-            >
-              Contrast
-            </button>
-          </div>
-        </div>
-
-        {/* Reset Demo Data */}
-        <div className="reset-data-row">
-          {!resetConfirm ? (
-            <button
-              type="button"
-              className="reset-demo-btn"
-              onClick={() => setResetConfirm(true)}
-            >
-              <RefreshCw size={14} />
-              <span>Reset Demo Routines & Tasks</span>
-            </button>
-          ) : (
-            <div className="reset-confirm-box">
-              <span>Restore all default demo items?</span>
-              <button
-                type="button"
-                className="confirm-yes-btn"
-                onClick={() => {
-                  onResetData();
-                  setResetConfirm(false);
-                  playCompletionChime();
-                }}
-              >
-                Yes, Reset
-              </button>
-              <button
-                type="button"
-                className="confirm-no-btn"
-                onClick={() => setResetConfirm(false)}
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Website & Features Showcase */}
-      {onOpenLanding && (
-        <div className="settings-section-card landing-shortcut-card">
-          <div className="section-title-row">
-            <Globe size={18} className="inline-icon" />
-            <h3 className="section-heading">Daily Routine Website & Overview</h3>
-          </div>
-          <p className="settings-desc">
-            Explore feature breakdowns, neuroscience principles, pricing plans, and interactive demos.
-          </p>
-          <button
-            type="button"
-            className="visit-landing-page-btn"
-            onClick={onOpenLanding}
-          >
-            <Globe size={15} />
-            <span>View Landing Page</span>
-            <span className="btn-arrow">→</span>
-          </button>
-        </div>
-      )}
     </div>
   );
 }

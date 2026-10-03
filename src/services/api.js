@@ -267,3 +267,34 @@ export const subscriptionApi = {
     });
   }
 };
+
+// ==========================================
+// 5. Gamification, Streaks & Mood API
+// ==========================================
+export const gamificationApi = {
+  getGamificationSummary: async () => {
+    return await request('/gamification/summary');
+  },
+
+  logDailyMood: async (moodData) => {
+    return await request('/gamification/mood', {
+      method: 'POST',
+      body: JSON.stringify(moodData)
+    });
+  },
+
+  checkStreak: async () => {
+    return await request('/gamification/streak/check', {
+      method: 'POST'
+    });
+  },
+
+  getHabitHeatmap: async (days = 30) => {
+    return await request(`/gamification/heatmap?days=${days}`);
+  },
+
+  getUserTrophies: async () => {
+    return await request('/gamification/trophies');
+  }
+};
+
